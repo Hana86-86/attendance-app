@@ -13,11 +13,21 @@ class Attendance extends Model
         'clock_out',
         'status',
     ];
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function breakTimes()
     {
-        return $this->hasMany(BreakTime::class);
+        return $this->hasMany(\App\Models\BreakTime::class);
     }
+
+    public function hasOpenBreak(): bool
+    {
+        return $this->breakTimes()->whereNull('end')->exists();
+    }
+    
     public function scopeToday($query)
     {
         return $query->where('user_id',auth()->id())->where('work_date',now()->toDateString());

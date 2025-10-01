@@ -6,12 +6,12 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Notifications\Messages\MailMessage;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
-
     /**
      * The attributes that are mass assignable.
      *
@@ -22,11 +22,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'role',
+        'email_verified_at',
     ];
     protected $attributes = [
         'role' => 'user', // デフォルトはスタッフ
     ];
-
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -48,5 +48,23 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+    // メール認証用のメールを送信
+    public function sendEmailVerificationNotification(): void
+{
+    $this->notify(new class extends VerifyEmail {
+        public function toMail($notifiable): MailMessage
+        {
+            return (new MailMessage)
+                ->subject('【' . config('app.name') . '】メールアドレスの確認')
+                ->line('以下のボタンをクリックして、メールアドレスの確認を完了してください。')
+                ->action('メールアドレスを確認する', $this->verificationUrl($notifiable))
+                ->line('このメールに心当たりがない場合は破棄してください。');
+        }
+    });
+}
+    public function attendances()
+    {
+        return $this->hasMany(\App\Models\Attendance::class);
     }
 }

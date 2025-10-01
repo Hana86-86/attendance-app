@@ -1,31 +1,60 @@
+@extends('layouts.staff')
+@section('main_class', 'centered')
 
+@section('content')
+  <div class="card card--xl">
+    <div class="att-badge">
+      <span class="badge {{ $badge['class'] }}">{{ $badge['text'] }}</span>
+    </div>
 
-<h1>本日の出勤</h1>
+    <div class="date-muted">{{ now()->isoFormat('YYYY年M月D日（ddd）') }}</div>
+    <div class="big-time">{{ now()->format('H:i') }}</div>
 
-@if (session('success')) <p>{{ session('success') }}</p> @endif
-@error('state') <p style="color:red">{{ $message }}</p> @enderror
+    @if (session('status'))
+      <div class="flash" role="alert" style="margin-bottom:16px;">{{ session('status') }}</div>
+    @endif
 
-@if(!$attendance)
-  <form method="post" action="{{ route('attendance.clockin') }}">@csrf
-    <button>出勤する</button>
-  </form>
+    @if ($errors->any())
+      <div class="error" style="margin:0 0 16px;color:red;">
+        @foreach ($errors->all() as $msg)
+          <div>{{ $msg }}</div>
+        @endforeach
+      </div>
+    @endif
 
-@elseif($attendance->status === 'working')
-  @php $onBreak = optional($attendance->breakTimes->last())->end === null; @endphp
+    @switch($state)
+      @case('not_working')
+        <form method="POST" action="{{ route('attendance.clock-in') }}">
+          @csrf
+          <x-button type="submit" variant="primary" style="min-width:120px;">出勤</x-button>
+        </form>
+        @break
 
-  @if($onBreak)
-    <form method="post" action="{{ route('attendance.breakout') }}">@csrf
-      <button>休憩から戻る</button>
-    </form>
-  @else
-    <form method="post" action="{{ route('attendance.clockout') }}">@csrf
-      <button>退勤する</button>
-    </form>
-    <form method="post" action="{{ route('attendance.breakin') }}">@csrf
-      <button>休憩に入る</button>
-    </form>
-  @endif
+      @case('working')
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;">
+          <form method="POST" action="{{ route('attendance.break-in') }}">@csrf
+            <x-button type="submit" variant="primary">休憩入</x-button>
+          </form>
+          <form method="POST" action="{{ route('attendance.clock-out') }}">@csrf
+            <x-button type="submit" variant="primary">退勤</x-button>
+          </form>
+        </div>
+        @break
 
-@else
-  <p>お疲れさまでした！</p>
-@endif
+      @case('on_break')
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;">
+          <form method="POST" action="{{ route('attendance.break-out') }}">@csrf
+            <x-button type="submit" variant="primary">休憩戻</x-button>
+          </form>
+          <form method="POST" action="{{ route('attendance.clock-out') }}">@csrf
+            <x-button type="submit" variant="primary">退勤</x-button>
+          </form>
+        </div>
+        @break
+
+      @case('closed')
+        <div style="margin-top:12px;">お疲れさまでした。</div>
+        @break
+    @endswitch
+  </div>
+@endsection

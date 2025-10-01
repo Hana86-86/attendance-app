@@ -2,10 +2,24 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Fortify\Fortify;
+use App\Actions\Fortify\CreateNewUser;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+// Fortify の Contract を use
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
+
+// 自作レスポンスクラスを use
+use App\Http\Responses\RegisterResponse;
+use App\Http\Responses\LoginResponse;
+
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -14,7 +28,8 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(RegisterResponseContract::class, RegisterResponse::class);
+        $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
     }
 
     /**
@@ -22,19 +37,30 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Laravel\Fortify\Fortify::createUsersUsing(function (array $input) {
-            validator($input, [
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-                'password' => ['required', 'string', 'min:8', 'confirmed'],
-            ])->validate();
-            return User::create([
-                'name' => $input['name'],
-                'email' => $input['email'],
-                'password' => Hash::make($input['password']),
-                'role' => 'user', // 常にユーザーとして登録
-            ]);
+        RateLimiter::for('login', function (Request $request) {
+            $email = (string) $request->input('email');
+            return Limit::perMinute(5)->by($email.'|'.$request->ip());
         });
 
+        // 認証/登録/メール認証 ビュー
+        Fortify::loginView(fn () => view('auth.login'));
+        Fortify::registerView(fn () => view('auth.register'));
+
+        Fortify::verifyEmailView(fn () => view('auth.verify'));
+
+        Fortify::createUsersUsing(CreateNewUser::class);
+
+         // スタッフ用ログイン（/login の POST）
+        Fortify::authenticateUsing(function ($request) {
+        $user = User::where('email', $request->input('email'))
+                    ->where('role', 'user')     // 「スタッフ」限定
+                    ->first();
+
+        if ($user && Hash::check($request->input('password'), $user->password)) {
+            return $user; // web ガードでログイン
+        }
+
+        return null;
+    });
     }
 }

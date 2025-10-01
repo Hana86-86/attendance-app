@@ -1,5 +1,5 @@
 勤怠管理アプリ
-Attendance App（Laravel 10 + Sail + Fortify）
+Attendance App（Laravel 12 + Sail + Fortify）
 
 環境構築
 Docker(Laravel Sail)を使用しています
