@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Requests\Auth\LoginRequest as UserLoginRequest;
 
 // Fortify の Contract を use
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -45,22 +46,34 @@ class FortifyServiceProvider extends ServiceProvider
         // 認証/登録/メール認証 ビュー
         Fortify::loginView(fn () => view('auth.login'));
         Fortify::registerView(fn () => view('auth.register'));
-
         Fortify::verifyEmailView(fn () => view('auth.verify'));
 
         Fortify::createUsersUsing(CreateNewUser::class);
 
-         // スタッフ用ログイン（/login の POST）
-        Fortify::authenticateUsing(function ($request) {
-        $user = User::where('email', $request->input('email'))
-                    ->where('role', 'user')     // 「スタッフ」限定
-                    ->first();
+        // スタッフ（role=user）ログイン
+        Fortify::authenticateUsing(function (Request $request) {
+            // FortifyのRequest → 自作FormRequestへ“中身ごと”コピー
+            /** @var \App\Http\Requests\Auth\LoginRequest $form */
+            $form = UserLoginRequest::createFrom($request); // 入力値を持ったまま生成
+            $form->setContainer(app())->setRedirector(app('redirect'));
 
-        if ($user && Hash::check($request->input('password'), $user->password)) {
-            return $user; // web ガードでログイン
-        }
+            // ここで rules()/messages() が実行
+            $form->validateResolved();
 
-        return null;
-    });
+            // validated() で検証済みデータを取得
+            $data = $form->validated();
+
+            // スタッフ(role='user')だけを対象に認証
+            $user = User::where('email', $data['email'] ?? null)
+                        ->where('role', 'user')
+                        ->first();
+
+            if ($user && Hash::check($data['password'] ?? '', $user->password)) {
+                // OKならこのユーザーでログイン（webガード）
+                return $user;
+            }
+
+            return null;
+        });
     }
 }

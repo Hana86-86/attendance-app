@@ -23,6 +23,10 @@
         @error('password') <p class="error">{{ $message }}</p> @enderror
     </div>
 
+    <label>
+    <input type="checkbox" name="remember"> ログイン状態を保持
+    </label>
+
     <div style="margin-top:16px">
         <x-button type="submit" variant="primary">管理者ログインする</x-button>
     </div>

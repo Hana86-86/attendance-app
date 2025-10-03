@@ -1,3 +1,4 @@
+//後で削除するファイル！
 @extends('layouts.admin')
 
 @section('content')

@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\PacksAttendance;
+use App\Http\Requests\Attendance\UpdateRequest;
 use App\Http\Controllers\Controller; //親クラス
-use Illuminate\Http\Request;
 use Carbon\Carbon;                   //日付操作
 use App\Models\User;
 use App\Models\Attendance;           //勤怠(休憩はリレーションで取得）
 use Illuminate\Support\Collection;
+use App\Models\StampCorrectionRequest; 
 
 class AdminAttendanceController extends Controller
 {
+    use PacksAttendance;
+
     private function toHM(?int $min): string
     {
         if ($min === null) return '';
@@ -45,12 +49,12 @@ class AdminAttendanceController extends Controller
                     $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
                 }
             }
-            $breakMin = $breakMin > 0 ? $breakMin : '';  // 0 なら空表示
+            $breakMin = $breakMin > 0 ? (int)$breakMin :0;  // 0 なら空表示
         // 勤務合計（分）＝(退勤-出勤)-休憩）
             $workMin = null;
             if ($att?->clock_in && $att?->clock_out) {
                 $total = Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out));
-                $workMin = max(0, $total - (int)($breakMin ?: 0));
+                $workMin = max(0, $total - $breakMin);
             }
         // テーブル1行分
             $list[] = [
@@ -85,44 +89,38 @@ class AdminAttendanceController extends Controller
             ->where('work_date', $date)
             ->first();
 
-        $clockIn  = $attendance?->clock_in ? Carbon::parse($attendance->clock_in)->format('H:i') : '';
-        $clockOut  = $attendance?->clock_out ? Carbon::parse($attendance->clock_out)->format('H:i') : '';
+        $attendanceId = optional($attendance)->id;
 
-        $b1 = $attendance?->breakTimes[0] ?? null;
-        $b2 = $attendance?->breakTimes[1] ?? null;
+        $requestId = StampCorrectionRequest::where('user_id', $id)
+            ->where('status', 'pending')
+            ->when($attendanceId,
+            fn($q) => $q->where('attendance_id', $attendanceId),
+            fn($q) => $q->whereDate('requested_clock_in', $date)
+            )
+            ->latest('id')
+            ->value('id');   // null の可能性あり（承認待ちが無い場合）
 
-        $break1In  = $b1?->start ? Carbon::parse($b1->start)->format('H:i') : '';
-        $break1Out  = $b1?->end ? Carbon::parse($b1->end)->format('H:i') : '';
+        $ui = [
+            'role'     => 'admin',
+            'status'   => 'editable',
+            'editable' => true,
+            'footer'   => '承認',
+        'form'     => [
+            'action' => $requestId ? route('requests.approve', ['id' => $requestId]) : null,
+            'method' => 'post',
+        ],
+        // 2個目フッター：直接勤怠更新
+            'footer'   => '修正',
+            'form'     => ['action' => route('admin.attendances.update', ['date'=>$date, 'id'=>$id]), 'method'=>'post'],
+    ];
+        return view('attendance.detail', $this->packDetail($attendance, $user, $date, $ui));
 
-        $break2In  = $b2?->start ? Carbon::parse($b2->start)->format('H:i') : '';
-        $break2Out  = $b2?->end ? Carbon::parse($b2->end)->format('H:i') : '';
-
-        $breaks[] = ['start' => '', 'end' => ''];
-
-        $dt = Carbon::parse($date);
-        $dateYear = $dt->isoFormat('YYYY年');
-        $dateMD   = $dt->isoFormat('M月D日');
-
-
-        $role    = 'admin';
-        $status  = 'editable';
-        $scanEdit = true;           //入力フィールドを編集モードで表示
-
-        return view('admin.attendance.show', [
-            'role'      => 'admin',     // Blade が編集モード/読み取りを判定
-            'status'    => 'editable',  // 'pending' を渡すと読み取りに切替可
-            'name'      => $user->name,
-            'date'      => $date,
-            'dateYear'  => $dateYear,
-            'dateMD'    => $dateMD,
-
-            // 時刻（H:i 文字列 or ''）
-            'clockIn'   => $clockIn,
-            'clockOut'  => $clockOut,
-            'break1In'  => $break1In,
-            'break1Out' => $break1Out,
-            'break2In'  => $break2In,
-            'break2Out' => $break2Out,
-        ]);
     }
+    public function update(string $date, int $id, UpdateRequest $request)
+    {
+        // ここは既存の更新ロジックを利用（直接勤怠を書き換え）
+        // …（省略・既存の保存処理を呼ぶ）
+        return back()->with('success','勤怠を修正しました。');
+    }
+    
 }

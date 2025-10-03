@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Requests\Attendance\{ClockInRequest, ClockOutRequest, BreakInRequest, BreakOutRequest};
 use App\Models\Attendance;
+use App\Models\StampCorrectionRequest;
+use App\Http\Controllers\Concerns\PacksAttendance;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -13,9 +15,8 @@ use Illuminate\Support\Sri;
 
 class AttendanceController extends Controller
 {
-    /**
-     * 出勤画面（状態に応じてボタン切替）
-     */
+    use PacksAttendance;
+
     public function create()
 {
     $today = now()->toDateString();
@@ -183,6 +184,8 @@ class AttendanceController extends Controller
         // 日付をキーにする
         $byDate = $rows->keyBy('work_date');
 
+        $byDate = $rows->keyBy(fn($r) => \Carbon\Carbon::parse($r->work_date)->toDateString());
+
         $list = [];
 
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
@@ -231,11 +234,35 @@ class AttendanceController extends Controller
     }
     public function show(string $date)
 {
-    $attendance = Attendance::with('breakTimes')
-        ->where('user_id', Auth::id())
-        ->where('work_date', $date)
-        ->first();
+    $user = Auth::user();
 
+        $attendance = Attendance::with('breakTimes')
+            ->where('user_id', $user->id)
+            ->where('work_date', $date)
+            ->first();
+    // 当日の修正申請が「pending」なら編集不可
+        $isPending = StampCorrectionRequest::where('user_id',$user->id)
+            ->where('attendance_id', optional($attendance)->id)
+            ->where('status','pending')
+            ->exists();
+
+        $ui = [
+            'role'     => 'staff',
+            'status'   => 'editable',
+            'editable' => true,
+            'footer'   => '修正',
+            'form'=>['action'=>route('requests.store',['date'=>$date]),'method'=>'post']];
+
+        $ui = [
+            'role'     => 'staff',
+            'status'   => 'pending',
+            'editable' => false,
+            'footer'   => null,
+            'form'     => null
+        ];
+
+        return view('attendance.detail', $this->packDetail($attendance, $user, $date, $ui));
+    
     // 休憩入力行：既存レコード + 追加1行（空の入力用）
     $breaks = $attendance?->breakTimes?->map(function($bt){
         return [
@@ -253,4 +280,5 @@ class AttendanceController extends Controller
         'breaks'     => $breaks,
     ]);
 }
+
 }

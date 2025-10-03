@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Auth;
+namespace App\Http\Requests\Admin\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class LoginRequest extends FormRequest
+class AdminLoginRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -13,7 +13,6 @@ class LoginRequest extends FormRequest
     {
         return true;
     }
-
     protected function prepareForValidation(): void
     {
         $this->merge([
@@ -29,19 +28,11 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email'    => ['required','string','email'],
-            'password' => ['required','string','min:8'],
+            'email'      => ['required', 'string', 'email'],
+            'password'   => ['required', 'string', 'min:8'],
         ];
     }
     public function attributes(): array
-    {
-        return [
-            'email'    => 'メールアドレス',
-            'password' => 'パスワード',
-        ];
-    }
-
-    public function messages(): array
     {
         return [
             'email.required'    => 'メールアドレスを入力してください',
@@ -50,6 +41,5 @@ class LoginRequest extends FormRequest
             'password.min'      => 'パスワードは8文字以上で入力してください',
         ];
     }
-
 
 }

@@ -11,7 +11,7 @@ class ApproveRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()?->can('admin-only') ?? false;
     }
 
     /**
@@ -22,7 +22,7 @@ class ApproveRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'confirm' => ['required','in:1'],
         ];
     }
 }

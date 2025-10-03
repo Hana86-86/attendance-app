@@ -58,13 +58,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/attendance/break-in',      [AttendanceController::class,'breakIn'])->name('attendance.break-in');
     Route::post('/attendance/break-out',     [AttendanceController::class,'breakOut'])->name('attendance.break-out');
 
-    // 勤怠詳細（当日1件）
-    Route::get('/attendance/{date}/detail', [AttendanceController::class, 'show'])
+    // 勤怠詳細（編集可）
+    Route::get('/attendance/{date}', [AttendanceController::class, 'show'])
         ->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendance.detail');
 
-    // 勤怠一覧（月）
+    // 月次
     Route::get('/attendance/{month}', [AttendanceController::class, 'indexMonth'])
+        ->where('month','\d{4}-\d{2}')
         ->name('attendance.list');
 
     // 修正申請（詳細画面からPOST）
@@ -72,15 +73,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->where('date','\d{4}-\d{2}-\d{2}')
         ->name('requests.store');
 
-    // 修正申請一覧
-    Route::get('/requests/{status?}', [StampCorrectionRequestController::class, 'index'])
-        ->whereIn('status', ['pending','approved'])
+    // 修正申請 一覧（共通ビューじゃないがURLはこれに一本化）
+    // /requests?status=pending|approved
+    Route::get('/requests', [StampCorrectionRequestController::class, 'index'])
         ->name('requests.list');
-
-    // 申請詳細
-    Route::get('/requests/{id}/show', [StampCorrectionRequestController::class, 'show'])
-        ->whereNumber('id')
-        ->name('requests.show');
 });
 
 // ======================================================
@@ -108,20 +104,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
 Route::middleware(['auth', 'verified', 'can:admin-only'])
     ->prefix('admin')->name('admin.')->group(function () {
 
-    // 今日へリダイレクト（ブックマーク用のショートカット）
-    Route::get('/attendances', fn () =>
-        redirect()->route('admin.attendances.index', ['date' => now()->toDateString()])
-    )->name('attendances.today');
+    // 勤怠一覧（当日）
+    Route::get('/attendances', function() {
+        return redirect()->route('admin.attendances.index', ['date' => now()->toDateString()]);
+        })->name('attendances.today');
 
-    // 日次（全ユーザー） 例: /admin/attendances/2025-09-30
+    // その日×ユーザーの勤怠詳細
     Route::get('/attendances/{date}', [AdminAttendanceController::class, 'index'])
         ->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendances.index');
 
-    // 日次詳細
+    // 管理者：勤怠詳細（直接修正する画面）
     Route::get('/attendances/{date}/users/{id}', [AdminAttendanceController::class, 'show'])
         ->where('date','\d{4}-\d{2}-\d{2}')->where('id','\d+')
         ->name('attendances.show');
+    Route::post('/attendances/{date}/users/{id}', [AdminAttendanceController::class, 'update'])
+        ->where(['date'=>'\d{4}-/d{2}-\d{2}','id'=>'\d+'])
+        ->name('attendances.update');
 
     // スタッフ一覧
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
@@ -132,8 +131,14 @@ Route::middleware(['auth', 'verified', 'can:admin-only'])
         ->name('users.attendances');
 
     // 申請（承認待ち／承認済み／詳細／承認）
-    Route::get('/requests/pending',           [AdminRequestController::class, 'pending'])->name('requests.pending');
-    Route::get('/requests/approved',          [AdminRequestController::class, 'approved'])->name('requests.approved');
-    Route::get('/requests/{id}',              [AdminRequestController::class, 'show'])->where('id','\d+')->name('requests.show');
-    Route::post('/requests/{id}/approve',     [AdminRequestController::class, 'approve'])->where('id','\d+')->name('requests.approve');
+    Route::get('/requests/pending', [AdminRequestController::class, 'pending'])->name('requests.pending');
+    Route::get('/requests/approved', [AdminRequestController::class, 'approved'])->name('requests.approved');
+
+    // 申請の詳細（= 共通Bladeで表示）
+    Route::get('/requests/{id}', [AdminRequestController::class, 'show'])
+        ->where('id','\d+')
+        ->name('requests.show');
+    Route::post('/requests/{id}/approve', [AdminRequestController::class, 'approve'])
+        ->where('id','\d+')
+        ->name('requests.approve');
 });

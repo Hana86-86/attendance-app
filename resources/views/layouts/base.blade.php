@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>@yield('title','勤怠アプリ')</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <style>
     /* =========================
@@ -193,7 +194,10 @@
 .text-left{ text-align:left; }
 .mono{ font-variant-numeric: tabular-nums; white-space:nowrap; }
 .empty{ text-align:center; color:#666; }
-  </style>
+
+
+
+ </style>
 
   @stack('head') {{-- 画面ごとの追記用 --}}
 </head>

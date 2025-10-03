@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\Admin\Auth\AdminLoginRequest;
 
 class AdminAuthController extends Controller
 {
@@ -30,29 +31,33 @@ class AdminAuthController extends Controller
         return view('admin.auth.login');
     }
 
-    public function login(Request $request)
+    public function login(AdminLoginRequest $request)
     {
-        $credentials = $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required|string',
-        ]);
+        $credentials = $request->only('email', 'password');
 
-        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
-            return back()->withErrors(['email' => 'メールアドレスまたはパスワードが正しくありません。'])
-                         ->onlyInput('email');
+        $remember = (bool) $request->boolean('remember');
+
+        // 資格情報で認証
+        if (! Auth::attempt($credentials, $remember)) {
+            // 認証失敗時は「ログイン情報が登録されていません」を返す
+            return back()
+                ->withErrors(['email' => 'ログイン情報が登録されていません'])
+                ->onlyInput('email');
         }
 
         $request->session()->regenerate();
 
-        if ((Auth::user()->role ?? 'user') !== 'admin') {
+        if (Auth::user()->role !== 'admin') {
+            // ロール不一致なら強制ログアウト
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            return back()->withErrors(['email' => '管理者権限がありません。']);
+
+            return back()
+                ->withErrors(['email' => '管理者権限がありません。'])
+                ->onlyInput('email');
         }
 
-        // 念のため intended を破棄
-        $request->session()->forget('url.intended');
 
         return redirect()->route('admin.attendances.index', [
             'date' => now()->toDateString(),

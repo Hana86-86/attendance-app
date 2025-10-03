@@ -7,9 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 class StampCorrectionRequest extends Model
 {
     protected $fillable = [
-        'user_id', 'attendance_id', 'status', 'payload',
+        'user_id',
+        'attendance_id',
+        'requested_clock_in',
+        'requested_clock_out',
+        'requested_break_start',
+        'requested_break_end',
+        'reason',
+        'status',        // 'pending' | 'approved' | 'rejected'
+        'reviewed_by',
+        'reviewed_at',
     ];
-    protected $casts = [
-        'payload' => 'array',
-    ];
+
+    public function attendance()
+    {
+        return $this->belongsTo(\App\Models\Attendance::class);
+    }
 }
+

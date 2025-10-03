@@ -34,13 +34,18 @@ class StampCorrectionRequestController extends Controller
         return DB::transaction(function () use ($date, $request) {
 
             // 同日の未処理があるならリジェクト（重複提出ガード）
-            $exists = StampCorrectionRequest::where('user_id', Auth::id())
-                ->where('status', 'pending')
-                ->where('payload->date', $date) // JSON カラムでもOK（RDBによりけり）
-                ->exists();
+            $exists = \App\Models\StampCorrectionRequest::where('user_id', \Auth::id())
+            ->where('status', 'pending')
+            ->whereDate('requested_clock_in', $date)   //日付一致を見る
+            ->exists();
+
             if ($exists) {
                 return back()->withErrors(['status' => '同日の承認待ち申請が既に存在します。']);
             }
+              // 当日の勤怠行（あれば紐付け）
+            $attendance = \App\Models\Attendance::where('user_id', \Auth::id())
+            ->where('work_date', $date)
+            ->first();
 
             // 入力値（null 安全＆空行除去）
             $breaks = collect($request->input('breaks', []))
@@ -52,17 +57,17 @@ class StampCorrectionRequestController extends Controller
                 ->values()
                 ->all();
 
+            $b1 = $breaks[0] ?? ['start' => null, 'end' => null];
+
             StampCorrectionRequest::create([
-                'user_id'       => Auth::id(),
-                'attendance_id' => null,
-                'status'        => 'pending',
-                'payload'       => [
-                    'date'      => $date,
-                    'clock_in'  => $request->input('clock_in'),
-                    'clock_out' => $request->input('clock_out'),
-                    'breaks'    => $breaks,
-                    'note'      => $request->input('note'),
-                ],
+                'user_id'               => Auth::id(),
+                'attendance_id'         => optional($attendance)->id,
+                'requested_clock_in'    => $request->input('clock_in'), // 'HH:MM' or null
+                'requested_clock_out'   => $request->input('clock_out'),
+                'requested_break_start' => $b1['start'] ?: null,
+                'requested_break_end'   => $b1['end'] ?:null,
+                'reason'                => $request->input('note'),
+                'status'                => 'pending',
             ]);
 
             return back()->with('status', '修正申請を送信しました。承認結果をお待ちください。');
