@@ -7,20 +7,13 @@ use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
-    /**
-     * Register services.
-     */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
-    /**
-     * Bootstrap services.
-     */
     public function boot(): void
     {
         $this->registerPolicies();
-        Gate::define('admin-only', fn($user) => ($user->role ?? 'user') === 'admin');
+
+        // 管理者専用 Gate
+        Gate::define('admin-only', fn($user) => ($user?->role ?? 'user') === 'admin');
     }
 }

@@ -11,82 +11,85 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Sri;
 
 class AttendanceController extends Controller
 {
     use PacksAttendance;
 
-    public function create()
+
+public function create()
 {
-    $today = now()->toDateString();
+    $date = today()->toDateString(); // ← 'YYYY-MM-DD'
     $state = 'not_working';
 
     $attendance = Attendance::with('breakTimes')
         ->where('user_id', Auth::id())
-        ->where('work_date', $today)
+        ->whereDate('work_date', $date)
         ->latest('id')
         ->first();
-
+    
     if ($attendance) {
-        if ($attendance->status === 'closed' || !is_null($attendance->clock_out)) {
-            $state = 'closed'; // 退勤済
-        } elseif ($attendance->hasOpenBreak()) {
-            $state = 'on_break'; // ★ 休憩オープン優先
-        } elseif ($attendance->status === 'working') {
-            $state = 'working'; // 勤務中
+        if (!is_null($attendance->clock_out) || $attendance->status === 'closed') {
+            $state = 'closed';                // 退勤後 → メッセージのみ
+        } elseif (is_null($attendance->clock_in)) {
+            $state = 'not_working';           // 出勤打刻なし → 出勤ボタンのみ
+        } elseif ($attendance->breakTimes()->whereNull('end')->exists()) {
+            $state = 'on_break';              // 休憩中 → 休憩戻ボタンのみ
+        } else {
+            $state = 'working';               // 出勤済み・休憩開いてない → 退勤＋休憩入
         }
     }
 
-    // バッジ（文言・色）
     $badgeTextMap = [
         'not_working' => '未出勤',
         'working'     => '勤務中',
         'on_break'    => '休憩中',
         'closed'      => '退勤済',
     ];
-    $badgeClassMap = [
-        'not_working' => 'badge badge-secondary',
-        'working'     => 'badge badge-green',
-        'on_break'    => 'badge badge-yellow',
-        'closed'      => 'badge badge-blue',
-    ];
+
     $badge = [
-        'text'  => $badgeTextMap[$state]  ?? '未設定',
-        'class' => $badgeClassMap[$state] ?? 'badge badge-secondary',
+        'text'  => $badgeTextMap[$state] ?? '未設定',
+        'class' => 'badge',
     ];
 
-    return view('attendance.create', compact('attendance', 'today', 'state', 'badge'));
+    $dateY  = \Carbon\Carbon::parse($date)->isoFormat('YYYY年');
+    $dateMD = \Carbon\Carbon::parse($date)->isoFormat('M月D日 (ddd)');
+
+    return view('attendance.create', compact('attendance', 'date', 'dateY', 'dateMD', 'state', 'badge'));
 }
 
-    /**
-     * 出勤（1日1回）
-     */
     public function clockIn(ClockInRequest $request)
-    {
-        $today = now()->toDateString();
+{
+    $date = today()->toDateString();
 
-        if (Attendance::where('user_id', Auth::id())->where('work_date', $today)->exists()) {
-            return back()->withErrors(['clock_in' => '本日はすでに出勤済みです。']);
-        }
-
-        Attendance::create([
+    $attendance = Attendance::firstOrCreate(
+        [
             'user_id'   => Auth::id(),
-            'work_date' => $today,
-            'clock_in'  => now(),
-            'status'    => 'working',
-        ]);
+            'work_date' => $date,
+        ],
+        [
+            'status' => 'working',
+        ]
+    );
 
-        return back()->with('status', '出勤しました');
+    if (!is_null($attendance->clock_in)) {
+        return back()->withErrors(['clock_in' => '本日はすでに出勤済みです。']);
     }
 
-    /**
-     * 休憩入（何回でも）…勤務中のみ、すでにオープン休憩が無いこと
-     */
+    $attendance->update([
+        'clock_in' => now(),
+        'status'   => 'working',
+    ]);
+
+    return back()->with('status', '出勤しました');
+}
+
     public function breakIn(BreakInRequest $request)
     {
+        $date = today()->toDateString();
+
         $attendance = Attendance::where('user_id', Auth::id())
-            ->where('work_date', now()->toDateString())
+            ->whereDate('work_date', $date)
             ->first();
 
         if (!$attendance) {
@@ -104,13 +107,12 @@ class AttendanceController extends Controller
         return back()->with('status', '休憩に入りました');
     }
 
-    /**
-     * 休憩戻（何回でも）…オープン休憩があること
-     */
     public function breakOut(BreakOutRequest $request)
     {
+        $date = today()->toDateString();
+
         $attendance = Attendance::where('user_id', Auth::id())
-            ->where('work_date', now()->toDateString())
+            ->where('work_date', today()->toDateString())
             ->first();
 
         if (!$attendance) {
@@ -130,14 +132,12 @@ class AttendanceController extends Controller
         return back()->with('status', '休憩から戻りました');
     }
 
-    /**
-     * 退勤（1日1回）
-     * オープン休憩があれば退勤させない（まず休憩戻を要求）
-     */
     public function clockOut(ClockOutRequest $request)
     {
+        $date = today()->toDateString();
+        
         $attendance = Attendance::where('user_id', Auth::id())
-            ->where('work_date', now()->toDateString())
+            ->where('work_date', today()->toDateString())
             ->first();
 
         if (!$attendance) {
@@ -147,7 +147,6 @@ class AttendanceController extends Controller
             return back()->withErrors(['clock_out' => '本日はすでに退勤済みです。']);
         }
 
-        // ★ここが今回の直し：オープン休憩がある限りエラーにする
         if ($attendance->breakTimes()->whereNull('end')->exists()) {
             return back()->withErrors(['clock_out' => '休憩中のため退勤できません。先に「休憩戻」を実行してください。']);
         }
@@ -162,123 +161,114 @@ class AttendanceController extends Controller
 
     public function indexMonth(string $month)
     {
-        //月の開始日と終了日を作成
-        $base = Carbon::createFromFormat('Y-m', $month); // ← "YYYY-MM" で Carbon 生成
-        $start = $base->copy()->startOfMonth();          // ← 月初
-        $end   = $base->copy()->endOfMonth();            // ← 月末
+        $base  = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
+        $start = $base->copy()->startOfMonth()->toDateString();
+        $end   = $base->copy()->endOfMonth()->toDateString();
 
-        // タイトル表示用（YYYY/MM形式に）
-        $titleYM = $base->isoFormat('YYYY/MM'); // ← Blade で使うため変数名を Blade と一致させる
+        $titleYM  = $base->isoFormat('YYYY/MM');
+        $prevMonth = $base->copy()->subMonth()->format('Y-m');
+        $nextMonth = $base->copy()->addMonth()->format('Y-m');
 
-        // 前月・翌月のリンク用パラメータ（YYYY-MM形式）
-        $prevMonth = $base->copy()->subMonth()->format('Y-m'); // ← 1ヶ月戻す
-        $nextMonth = $base->copy()->addMonth()->format('Y-m'); // ← 1ヶ月進める
+        $rows = Attendance::with('breakTimes')
+        ->where('user_id', Auth::id())
+        ->whereBetween('work_date', [$start, $end])
+        ->orderBy('work_date')
+        ->get();
 
-        // 自分の勤怠を月範囲で取得（無い日は空白表示にしたいので map 整形）
-        $rows = Attendance::with('breakTimes')                  // ← 休憩のリレーションも取得
-            ->where('user_id', Auth::id())                      // ← 自分のデータのみ
-            ->whereBetween('work_date', [$start->toDateString(), $end->toDateString()])
-            ->orderBy('work_date')
-            ->get();
 
-        // 日付をキーにする
-        $byDate = $rows->keyBy('work_date');
+        $byDate = $rows->keyBy(fn ($r) => $r->work_date->toDateString());
 
-        $byDate = $rows->keyBy(fn($r) => \Carbon\Carbon::parse($r->work_date)->toDateString());
+    $list = [];
+    for ($d = Carbon::parse($start); $d->lte($end); $d->addDay()) {
+        $date = $d->toDateString();
+        $att  = $byDate->get($date);
 
-        $list = [];
+        $clockIn  = $att?->clock_in?->format('H:i')  ?? '';
+        $clockOut = $att?->clock_out?->format('H:i') ?? '';
 
-        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
-            $date = $d->toDateString();
-            $att  = $byDate->get($date); // その日の勤怠（なければ null）
-
-            // 出退勤（H:i 文字列 or 空文字）
-            $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
-            $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
-
-             // 休憩合計（分）
-            $breakMin = 0;
+        // 休憩合計（分）
+        $breakMin = 0;
         if ($att) {
             foreach ($att->breakTimes as $bt) {
                 if ($bt->start && $bt->end) {
-                    $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
+                    $breakMin += \Carbon\Carbon::parse($bt->start)->diffInMinutes(\Carbon\Carbon::parse($bt->end));
                 }
             }
         }
-            $breakMin = $breakMin > 0 ? $breakMin : '';
-
-            // 勤務合計（分）…出退勤が揃っている時のみ数値、それ以外は空文字
-        $workMin = '';
-        if ($att && $att->clock_in && $att->clock_out) {
-            $total   = Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out));
-            $workMin = max(0, $total - $breakMin);
+        $breakMin = $breakMin > 0 ? $breakMin : null;
+        // 勤務合計（分)
+        $workMin = null;
+        if ($att?->clock_in && $att?->clock_out) {
+            $total   = $att->clock_in->diffInMinutes($att->clock_out);
+            $workMin = max(0, $total - (int)($breakMin ?? 0)); // ← 数値だけ引く
         }
 
     $list[] = [
-        'date'      => $date,                         // ← $att ではなく $date を使う
-        'dow'       => $d->isoFormat('dd'),
-        'clock_in'  => $clockIn,
-        'clock_out' => $clockOut,
-        'break_min' => $breakMin ?: '',               // 無い日は空白表示
-        'work_min'  => $workMin === '' ? '' : $workMin,
-        'detail_url'=> route('attendance.detail', ['date' => $date]),
-    ];
-}
+            'clock_in'  => $clockIn,
+            'clock_out' => $clockOut,
+            'break_min' => $breakMin,
+            'break_hm'  => $this->toHM($breakMin),
+            'work_min'  => $workMin,
+            'work_hm'   => $this->toHM($workMin),
+            'work_date' => $date,
+            'detail_url' => route('attendance.detail', ['date' => $date]),
+        ];
+    }
 
-        return view('attendance.list', [
-            'titleYM'   => $titleYM,   //  Blade の @section('title', ...) で使用
-            'prevMonth' => $prevMonth, //  「前月」リンク用
-            'nextMonth' => $nextMonth, //  「翌月」リンク用
-            'list'      => $list,      //  テーブル描画用
+    return view('attendance.list', compact('titleYM','prevMonth','nextMonth','list'));
+}
+    public function today()
+    {
+        $attendance = Attendance::with('breakTimes')
+            ->where('user_id', Auth::id())
+            ->forToday()
+            ->latest('id')
+            ->first();
+
+        $date = now(config('app.timezone'))->toDateString();
+        $dateY  = Carbon::parse($date)->isoFormat('YYYY年');
+        $dateMD = Carbon::parse($date)->isoFormat('M月D日');
+
+        return view('attendance.detail', [
+            'attendance' => $attendance,
+            'date'   => $date,
+            'dateY'  => $dateY,
+            'dateMD' => $dateMD,
         ]);
     }
+
     public function show(string $date)
 {
-    $user = Auth::user();
+    $user = auth()->user();
 
-        $attendance = Attendance::with('breakTimes')
-            ->where('user_id', $user->id)
-            ->where('work_date', $date)
-            ->first();
-    // 当日の修正申請が「pending」なら編集不可
-        $isPending = StampCorrectionRequest::where('user_id',$user->id)
-            ->where('attendance_id', optional($attendance)->id)
-            ->where('status','pending')
-            ->exists();
+    $attendance = Attendance::with('breakTimes')
+        ->where('user_id', $user->id)
+        ->whereDate('work_date', $date)
+        ->first();
 
-        $ui = [
-            'role'     => 'staff',
-            'status'   => 'editable',
-            'editable' => true,
-            'footer'   => '修正',
-            'form'=>['action'=>route('requests.store',['date'=>$date]),'method'=>'post']];
+    // 当日の pending 申請があれば編集不可
+    $isPending = StampCorrectionRequest::query()
+        ->where('user_id', $user->id)
+        ->when($attendance, fn($q) => $q->where('attendance_id', $attendance->id))
+        ->where('status', 'pending')
+        ->exists();
 
-        $ui = [
-            'role'     => 'staff',
-            'status'   => 'pending',
-            'editable' => false,
-            'footer'   => null,
-            'form'     => null
-        ];
+    $ui = [
+        'role'     => 'staff',
+        'status'   => $isPending ? 'pending' : 'editable',
+        'editable' => !$isPending,
+        'footer'   => $isPending ? 'message' : 'request',
+        'form'     => $isPending ? null : [
+            'action' => route('requests.store', ['date' => $date]),
+            'method' => 'post',
+        ],
+        'canEdit'  => !$isPending,
+    ];
 
-        return view('attendance.detail', $this->packDetail($attendance, $user, $date, $ui));
-    
-    // 休憩入力行：既存レコード + 追加1行（空の入力用）
-    $breaks = $attendance?->breakTimes?->map(function($bt){
-        return [
-            'start' => optional($bt->start)->format('H:i'),
-            'end'   => optional($bt->end)->format('H:i'),
-        ];
-    })->toArray() ?? [];
+    $viewData = $this->packDetail($attendance, $user, $date, $ui);
+    $viewData['dateY']  = \Carbon\Carbon::parse($date)->isoFormat('YYYY年');
+    $viewData['dateMD'] = \Carbon\Carbon::parse($date)->isoFormat('M月D日');
 
-    $breaks[] = ['start' => '', 'end' => '']; // 追加フィールド1つ
-
-    return view('attendance.detail', [
-        'name'       => Auth::user()->name,
-        'date'       => $date,
-        'attendance' => $attendance,
-        'breaks'     => $breaks,
-    ]);
+    return view('attendance.detail', $viewData);
 }
-
 }

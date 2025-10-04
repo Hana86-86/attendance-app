@@ -11,7 +11,7 @@
 @endphp
 
 <nav class="nav">
-  <a href="{{ route('attendance.create') }}"
+  <a href="{{ route('attendance.create', ['date' => today()->toDateString()]) }}"
      class="{{ request()->routeIs('attendance.create') ? 'active' : '' }}">勤怠</a>
 
   <a href="{{ route('attendance.list', ['month' => now()->format('Y-m')]) }}"

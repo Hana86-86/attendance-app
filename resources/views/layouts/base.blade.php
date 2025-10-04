@@ -134,35 +134,49 @@
     padding: 28px 0;
   }
 
-  /* 勤怠カードの見た目微調整（中央寄せ前提の少ない情報の画面用） */
-  .card.card--xl {
-    width: clamp(480px, 48vw, 960px);
-    background: var(--panel);
-    border-radius: var(--radius);
-    box-shadow: 0 1px 0 rgba(0,0,0,.05), 0 10px 24px rgba(0,0,0,.05);
-    padding: clamp(20px, 3vw, 32px) clamp(20px, 4vw, 40px);
-    text-align:center;
-  }
-  .card .date-muted {
-    font-size: clamp(13px, 1.6vw, 16px);
-    color: var(--muted);
-    margin-bottom: 10px;
-  }
-  .card .big-time {
-    font-size: clamp(40px, 7vw, 56px);
-    line-height:1.1;
-    font-weight: 800;
-    letter-spacing: .02em;
-    margin: 6px 0 14px;
-  }
+ /* ====== Figmaトーンの最小スタイル ====== */
+.card.--centered{
+  max-width: 760px; margin: 40px auto; padding: 40px;
+  background: #f7f7f7; border: 1px solid #e5e5e5;
+}
 
-  /* バッジ */
-  .badge{ display:inline-block; padding:4px 10px; border-radius: 999px; font-size:12px; font-weight:700; color:#fff; }
-  .badge-gray{  background:#9ca3af; }
-  .badge-green{ background:#22c55e; }
-  .badge-yellow{background:#eab308; }
-  .badge-blue{  background:#3b82f6; }
+.state-badge{ text-align:center; margin-bottom:16px; }
+.badge{
+  display:inline-block; font-size:12px; line-height:1; padding:6px 10px;
+  background:#E5E7EB; color:#333; border-radius:9999px;
+}
 
+.date-meta{ text-align:center; color:#666; }
+.date-meta .y{ font-size:14px; margin-bottom:2px; }
+.date-meta .md{ font-size:14px; }
+
+.big-time{
+  text-align:center; font-weight:700; font-size:40px; margin:10px 0 24px;
+}
+
+.alert{ margin:10px auto 0; max-width:420px; text-align:center; color:#0a0; }
+.error{ margin:10px auto 0; max-width:420px; text-align:center; color:#d00; }
+
+.actions{ display:flex; justify-content:center; gap:20px; margin-top:6px; }
+.actions.--single{ justify-content:center; }
+.actions.--double{ justify-content:center; }
+
+.btn{
+  display:inline-block; min-width:140px; padding:10px 16px;
+  font-weight:700; border-radius:6px; border:1px solid transparent; cursor:pointer;
+}
+.btn-primary{
+  background:#111; color:#fff; border-color:#111;
+}
+.btn-primary:hover{ opacity:.9; }
+.btn-secondary{
+  background:#e6e6e6; color:#111; border-color:#d9d9d9;
+}
+.btn-secondary:hover{ background:#dcdcdc; }
+
+.finished{
+  margin-top:20px; text-align:center; color:#333;
+}
 /* カード内上部のバッジ位置 */
   .att-badge{ margin-bottom: 10px; }
 

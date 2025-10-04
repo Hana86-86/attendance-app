@@ -14,40 +14,41 @@
 
   {{-- 一覧テーブル --}}
   <div class="card">
-    <table class="table att-table">
-      <thead>
-        <tr>
-          <th style="width:160px;">日付</th>
-          <th>出勤</th>
-          <th>退勤</th>
-          <th>休憩</th>
-          <th>合計</th>
-          <th style="width:90px;">詳細</th>
-        </tr>
-      </thead>
-      <tbody>
-        @forelse ($list as $r)
-          <tr>
-            <td>
-              {{ \Carbon\Carbon::parse($r['date'])->isoFormat('YYYY/MM/DD') }}
-              <span style="color:#666;">（{{ $r['dow'] }}）</span>
-            </td>
-            <td class="mono">{{ $r['clock_in'] ?: '' }}</td>
-            <td class="mono">{{ $r['clock_out'] ?: '' }}</td>
-            <td class="mono">{{ m2hm($r['break_min']) ?: '' }}</td>
-            <td class="mono">{{ m2hm($r['work_min']) ?: '' }}</td>
-            <td>
-              @if (!empty($row['detail_url']) && $row['detail_url'] !== '#')
-                <a class="btn btn-link" href="{{ $row['detail_url'] }}">詳細</a>
-              @else
-                <span class="btn btn-disabled" aria-disabled="true">詳細</span>
-              @endif
-            </td>
-          </tr>
-          @empty
-          <tr><td colspan="6" style="text-align:center;color:#666;">勤怠データがありません</td></tr>
-        @endforelse
-      </tbody>
-    </table>
-  </div>
+  <table class="table att-table">
+    <thead>
+      <tr>
+        <th style="width:160px;">日付</th>
+        <th>出勤</th>
+        <th>退勤</th>
+        <th>休憩</th>
+        <th>合計</th>
+        <th style="width:98px;">詳細</th>
+      </tr>
+    </thead>
+
+    <tbody>
+    @forelse ($list as $row)
+      @php
+        $displayDate = \Carbon\Carbon::parse($row['work_date'])->isoFormat('YYYY/MM/DD');
+        $detailDate  = \Carbon\Carbon::parse($row['work_date'])->format('Y-m-d');
+      @endphp
+      <tr>
+        <td>{{ $displayDate }}</td>
+        <td class="mono">{{ $row['clock_in']  ?? '' }}</td>
+        <td class="mono">{{ $row['clock_out'] ?? '' }}</td>
+        <td class="mono">{{ m2hm($row['break_min'] ?? 0) }}</td>
+        <td class="mono">{{ m2hm($row['work_min']  ?? 0) }}</td>
+        <td class="mono">
+          {{-- クリック可能は a タグのみ。無効日にしたい時は a ではなく span を出す --}}
+          <a class="btn-link" href="{{ route('attendance.detail', ['date' => $detailDate]) }}">詳細</a>
+        </td>
+      </tr>
+    @empty
+      <tr>
+        <td colspan="6" style="text-align:center; color:#666;">勤怠データがありません。</td>
+      </tr>
+    @endforelse
+    </tbody>
+  </table>
+</div>
 @endsection

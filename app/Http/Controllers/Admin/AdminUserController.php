@@ -7,10 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Attendance;
 use Carbon\Carbon;
+use App\Http\Controllers\Concerns\PacksAttendance;
 
 class AdminUserController extends Controller
 {
-    // 検索なし・全件表示
+    use PacksAttendance;
+
     public function index()
     {
         $users = User::where('role', 'user')  // 管理者は除外
@@ -53,18 +55,22 @@ class AdminUserController extends Controller
                         : null;
 
             $list[] = [
-                'id'        => $user->id,
+                'user_id'   => $user->id,
                 'name'      => $user->name,
                 'clock_in'  => $clockIn,
                 'clock_out' => $clockOut,
                 'break_min' => $breakMin ?: null,
+                'break_hm'  => $this->toHM(is_null($breakMin) ? null : (int)$breakMin),
                 'work_min'  => $workMin,
-                // 各日の詳細（当日×ユーザー）へ飛ぶリンク
-                'detail_url'=> route('admin.attendances.show', ['date' => $date, 'id' => $user->id]),
-            ];
+                'work_hm'   => $this->toHM(is_null($workMin)  ? null : (int)$workMin),
+                'work_date' => $date,
+                'detail_url' => route('admin.attendances.show', [
+                'date' => $date,
+                'id'   => $user->id,
+            ]),
+        ];
         }
 
-        // 既存の管理者用一覧Bladeに合わせて値を渡す
         return view('admin.attendance.index', [
             'title'    => $base->isoFormat('YYYY/MM'),
             'date'     => $base->toDateString(),           // ナビ用に基準日

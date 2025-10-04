@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Attendance;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Carbon\Carbon;
 
 class UpdateRequest extends FormRequest
 {
@@ -11,7 +12,7 @@ class UpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check;
+        return auth()->check();
     }
 
     /**
@@ -51,31 +52,29 @@ class UpdateRequest extends FormRequest
         $out = $this->input('clock_out');
         $breaks = $this->input('breaks', []);
 
-        if ($in && $out) {
-            $cin  = Carbon::createFromFormat('H:i', $in);
-            $cout = Carbon::createFromFormat('H:i', $out);
+        $in  = $in  ? Carbon::createFromFormat('H:i', $in)  : null;
+        $out = $out ? Carbon::createFromFormat('H:i', $out) : null;
 
+            // 休憩開始は出勤前NG／退勤後NG」
             foreach ($breaks as $i => $b) {
-                $sc = null; // ← ここで毎ループ初期化
-
                 if (!empty($b['start'])) {
                     $sc = Carbon::createFromFormat('H:i', $b['start']);
-                    if ($sc->lt($cin) || $sc->gt($cout)) {
+                    if ($in  && $sc->lt($in))  {
+                        $v->errors()->add("breaks.$i.start", '休憩時間が不適切な値です');
+                    }
+                    if ($out && $sc->gt($out)) {
                         $v->errors()->add("breaks.$i.start", '休憩時間が不適切な値です');
                     }
                 }
 
+                // 休憩終了は退勤後NG
                 if (!empty($b['end'])) {
                     $ec = Carbon::createFromFormat('H:i', $b['end']);
-                    if ($ec->gt($cout)) {
+                    if ($out && $ec->gt($out)) {
                         $v->errors()->add("breaks.$i.end", '休憩時間もしくは退勤時間が不適切な値です');
-                    }
-                    if ($sc && $ec->lt($sc)) {
-                        $v->errors()->add("breaks.$i.end", '休憩時間が不適切な値です');
                     }
                 }
             }
-        }
-    });
-}
+        });
+    }
 }

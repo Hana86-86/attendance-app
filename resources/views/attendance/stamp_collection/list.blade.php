@@ -3,7 +3,7 @@
 @section('title', $status === 'approved' ? '申請一覧（承認済み）' : '申請一覧（承認待ち）')
 
 @section('nav')
-  <x-page-title>申請一覧</x-page-title>
+
   <nav class="nav">
     <a href="{{ route('requests.list', ['status'=>'pending']) }}"
         class="{{ $status==='pending' ? 'active' : '' }}">承認待ち</a>
@@ -15,7 +15,7 @@
 @section('content')
 <x-page-title>申請一覧</x-page-title>
 
-<div class="card" style="max-width:768px;margin:auto;">
+<div class="card" >
   <table class="table">
     <thead>
       <tr>
@@ -31,7 +31,7 @@
     @forelse ($list as $r)
       @php
         $p = $r->payload ?? [];
-        $date = $p['date'] ?? null;
+        $date = $p['work_date'] ?? null;
         $ci   = $p['clock_in']  ?? '';
         $co   = $p['clock_out'] ?? '';
         $breaks = is_countable($p['breaks'] ?? null) ? count($p['breaks']) : 0;
@@ -42,7 +42,7 @@
         <td class="mono">{{ $ci }}</td>
         <td class="mono">{{ $co }}</td>
         <td class="mono">{{ $breaks }}</td>
-        <td><a class="btn btn-link" href="{{ route('requests.show', ['id'=>$r->id]) }}">詳細</a></td>
+        <td><a class="btn btn-link" href="{{ route('admin.requests.show', ['id'=>$r->id]) }}">詳細</a></td>
       </tr>
     @empty
       <tr><td colspan="6" class="empty">対象の申請はありません</td></tr>

@@ -9,47 +9,59 @@ use App\Models\User;
 trait PacksAttendance
 {
     /**
-     * 勤怠詳細画面で使う全変数を1か所で組み立てる
+     * 分(整数) → "H:MM" 文字列
+     */
+    protected function toHM(?int $minutes): ?string
+    {
+        if ($minutes === null) return null;
+        $h = intdiv($minutes, 60);
+        $m = $minutes % 60;
+        return sprintf('%d:%02d', $h, $m);
+    }
+
+    /**
+     * 勤怠詳細で使うデータを1か所で組み立て
      *
-     * @param  Attendance|null $attendance  当日の勤怠(なければ null)
-     * @param  User            $user        対象ユーザー
-     * @param  string          $date        'YYYY-MM-DD'
-     * @param  array           $ui          画面モード・フッター等 ['role','status','editable','footer','form'...]
+     * @param  Attendance|null $attendance
+     * @param  User            $user
+     * @param  string          $date   'YYYY-MM-DD'
+     * @param  array           $ui
      * @return array
      */
-    protected function packDetail($attendance, User $user, string $date, array $ui): array
+
+    protected function packDetail(?Attendance $attendance, User $user, string $date, array $ui): array
     {
         // 出勤・退勤
         $clockIn  = $attendance?->clock_in  ? Carbon::parse($attendance->clock_in)->format('H:i')  : '';
         $clockOut = $attendance?->clock_out ? Carbon::parse($attendance->clock_out)->format('H:i') : '';
 
-        // 休憩（最大2枠を画面に出す）
+        // 休憩（最大2枠）
         $b1in = $b1out = $b2in = $b2out = '';
         if ($attendance) {
-            $bts = collect($attendance->breakTimes ?? []);
-            if ($bts->get(0)) {
-                $b1in  = optional($bts[0]->start)->format('H:i') ?? '';
-                $b1out = optional($bts[0]->end)->format('H:i')   ?? '';
-            }
-            if ($bts->get(1)) {
-                $b2in  = optional($bts[1]->start)->format('H:i') ?? '';
-                $b2out = optional($bts[1]->end)->format('H:i')   ?? '';
-            }
+            $bts = ($attendance->breakTimes ?? collect())->values();
+            $b1in  = $bts->get(0)?->start?->format('H:i') ?? '';
+            $b1out = $bts->get(0)?->end?->format('H:i')   ?? '';
+            $b2in  = $bts->get(1)?->start?->format('H:i') ?? '';
+            $b2out = $bts->get(1)?->end?->format('H:i')   ?? '';
         }
 
         return [
+            'attendance' => $attendance,
+
             // 表示系
-            'role'      => $ui['role']       ?? 'staff',              // 'staff' | 'admin'
-            'status'    => $ui['status']     ?? 'editable',           // 'editable' | 'pending' | 'approved'（画面状態）
-            'canEdit'   => $ui['editable']   ?? false,                // 入力可能かどうか
-            'footer'    => $ui['footer']     ?? null,                 // 右下ボタンの種別
-            'form'      => $ui['form']       ?? null,                 // POST 先
+            'role'     => $ui['role']     ?? 'staff',     // 'staff' | 'admin'
+            'status'   => $ui['status']   ?? 'editable',  // 'editable' | 'pending' | 'approved'
+            'canEdit'  => $ui['editable'] ?? false,
+            'footer'   => $ui['footer']   ?? null,
+            'form'     => $ui['form']     ?? null,
 
             // ヘッダー
-            'name'      => $user->name,
-            'date'      => $date,
+            'name'     => $user->name,
+            'userId'   => $user->id,
+            'date'     => $date,
+            'note'     => $ui['note'] ?? null,
 
-            // 明細（Blade は存在する変数だけを参照する、そのまま受け取る変数名）
+            // 明細
             'clockIn'   => $clockIn,
             'clockOut'  => $clockOut,
             'break1In'  => $b1in,

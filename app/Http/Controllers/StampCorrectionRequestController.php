@@ -31,47 +31,53 @@ class StampCorrectionRequestController extends Controller
     // 登録（勤怠詳細からPOST）※FormRequestでバリデーション
     public function store(string $date, UpdateRequest $request)
     {
-        return DB::transaction(function () use ($date, $request) {
+        $data   = $request->validated();
+        $breaks = $data['breaks'] ?? [];
 
-            // 同日の未処理があるならリジェクト（重複提出ガード）
-            $exists = \App\Models\StampCorrectionRequest::where('user_id', \Auth::id())
-            ->where('status', 'pending')
-            ->whereDate('requested_clock_in', $date)   //日付一致を見る
+        $attendance = Attendance::where('user_id', Auth::id())
+        ->whereDate('work_date', $date)
+        ->first();
+
+        return DB::transaction(function () use ($date, $data, $breaks, $attendance) {
+
+            // 二重申請のガード
+            $exists = StampCorrectionRequest::where('user_id', Auth::id())
+                ->when($attendance,
+                fn ($q) => $q->where('attendance_id', $attendance->id),
+                fn ($q) => $q->whereDate('requested_clock_in', $date)
+            )
             ->exists();
 
             if ($exists) {
-                return back()->withErrors(['status' => '同日の承認待ち申請が既に存在します。']);
-            }
-              // 当日の勤怠行（あれば紐付け）
-            $attendance = \App\Models\Attendance::where('user_id', \Auth::id())
-            ->where('work_date', $date)
-            ->first();
+            return back()->withErrors(['status' => '同日の申請が未承認のまま既に存在します。']);
+    }
 
-            // 入力値（null 安全＆空行除去）
-            $breaks = collect($request->input('breaks', []))
-                ->map(fn($b) => [
-                    'start' => trim((string)($b['start'] ?? '')),
-                    'end'   => trim((string)($b['end']   ?? '')),
-                ])
-                ->filter(fn($b) => $b['start'] !== '' || $b['end'] !== '')
-                ->values()
-                ->all();
+            // 既存の当日勤怠
+            $attendance = Attendance::where('user_id', Auth::id())
+                            ->whereDate('work_date', date())
+                            ->first();
 
-            $b1 = $breaks[0] ?? ['start' => null, 'end' => null];
-
+            // 申請作成
             StampCorrectionRequest::create([
                 'user_id'               => Auth::id(),
                 'attendance_id'         => optional($attendance)->id,
-                'requested_clock_in'    => $request->input('clock_in'), // 'HH:MM' or null
-                'requested_clock_out'   => $request->input('clock_out'),
-                'requested_break_start' => $b1['start'] ?: null,
-                'requested_break_end'   => $b1['end'] ?:null,
-                'reason'                => $request->input('note'),
+                'requested_clock_in'    => $data['clock_in']   ?? null,
+                'requested_clock_out'   => $data['clock_out']  ?? null,
+                'requested_break_start' => $breaks[0]['start'] ?? null,
+                'requested_break_end'   => $breaks[0]['end']   ?? null,
+                'note'                  => $data['note'],
                 'status'                => 'pending',
             ]);
 
-            return back()->with('status', '修正申請を送信しました。承認結果をお待ちください。');
+            return back()->with('success', '修正申請を送信しました。');
         });
     }
-
+    public function show(int $id)
+{
+    $req = StampCorrectionRequest::with(['attendance','user'])->findOrFail($id);
+    return view('attendance.stamp_collection.list', [
+        'status' => $req->status ?? 'pending',
+        'list'   => collect([$req]),
+]);
+}
 }

@@ -19,10 +19,9 @@ use App\Http\Controllers\Admin\AdminRequestController;     // 管理者：申請
 // 公開トップ：ログイン済みなら勤怠TOP、未ログインならログインへ
 // ======================================================
 Route::get('/', function () {
-    return Auth::check()
-        ? redirect('/attendance')
-        : redirect()->route('login');
-})->name('home');
+    return auth()->check() ? redirect()->route('attendance.detail')
+                            : redirect()->route('login');
+    })->name('home');
 
 // ======================================================
 // メール認証（共通）：要ログイン
@@ -51,43 +50,48 @@ Route::middleware('auth')->group(function () {
 // ======================================================
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // 打刻画面 / 打刻API
-    Route::get('/attendance',                [AttendanceController::class,'create'])->name('attendance.create');
-    Route::post('/attendance/clock-in',      [AttendanceController::class,'clockIn'])->name('attendance.clock-in');
-    Route::post('/attendance/clock-out',     [AttendanceController::class,'clockOut'])->name('attendance.clock-out');
-    Route::post('/attendance/break-in',      [AttendanceController::class,'breakIn'])->name('attendance.break-in');
-    Route::post('/attendance/break-out',     [AttendanceController::class,'breakOut'])->name('attendance.break-out');
+    // 打刻（今日の状態画面 + ボタン）
+    Route::get('/attendance', [AttendanceController::class, 'create'])
+        ->name('attendance.create');
+
+    // 打刻POST
+    Route::post('/attendance/clock-in',  [AttendanceController::class,'clockIn'])->name('attendance.clock-in');
+    Route::post('/attendance/break-in',  [AttendanceController::class,'breakIn'])->name('attendance.break-in');
+    Route::post('/attendance/break-out', [AttendanceController::class,'breakOut'])->name('attendance.break-out');
+    Route::post('/attendance/clock-out', [AttendanceController::class,'clockOut'])->name('attendance.clock-out');
 
     // 勤怠詳細（編集可）
     Route::get('/attendance/{date}', [AttendanceController::class, 'show'])
         ->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendance.detail');
 
-    // 月次
-    Route::get('/attendance/{month}', [AttendanceController::class, 'indexMonth'])
+     // 月次
+    Route::get('/attendance/month/{month}', [AttendanceController::class, 'indexMonth'])
         ->where('month','\d{4}-\d{2}')
         ->name('attendance.list');
 
-    // 修正申請（詳細画面からPOST）
-    Route::post('/requests/{date}', [StampCorrectionRequestController::class,'store'])
+    // 修正申請（スタッフ）
+    Route::post('/requests/{date}', [StampCorrectionRequestController::class, 'store'])
         ->where('date','\d{4}-\d{2}-\d{2}')
         ->name('requests.store');
 
-    // 修正申請 一覧（共通ビューじゃないがURLはこれに一本化）
-    // /requests?status=pending|approved
+    // スタッフの申請一覧・詳細（承認は無し）
     Route::get('/requests', [StampCorrectionRequestController::class, 'index'])
-        ->name('requests.list');
-});
+        ->name('requests.list'); // ?status=pending|approved
+    Route::get('/requests/{id}', [StampCorrectionRequestController::class, 'show'])
+        ->whereNumber('id')
+        ->name('requests.show');
 
 // ======================================================
 // 共通ログアウト（スタッフ側） POST
 // ======================================================
 Route::post('/logout', function () {
-    Auth::logout();
+    Auth::guard('web')->logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
     return redirect('/login');
 })->name('logout');
+});
 
 // ======================================================
 // 管理者：ログイン/ログアウト
@@ -101,26 +105,29 @@ Route::prefix('admin')->name('admin.')->group(function () {
 // ======================================================
 // 管理者：保護された画面（要ログイン & 認証済み & admin-only）
 // ======================================================
-Route::middleware(['auth', 'verified', 'can:admin-only'])
-    ->prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth','verified','can:admin-only'])->group(function () {
 
-    // 勤怠一覧（当日）
-    Route::get('/attendances', function() {
-        return redirect()->route('admin.attendances.index', ['date' => now()->toDateString()]);
-        })->name('attendances.today');
+    // 当日リダイレクト
+    Route::get('/attendances', function () {
+        return redirect()->route('admin.attendances.index', ['date' => today()->toDateString()]);
+    })->name('attendances.today');
 
-    // その日×ユーザーの勤怠詳細
+    // 勤怠 日次一覧・詳細・更新（管理）
     Route::get('/attendances/{date}', [AdminAttendanceController::class, 'index'])
         ->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendances.index');
-
-    // 管理者：勤怠詳細（直接修正する画面）
     Route::get('/attendances/{date}/users/{id}', [AdminAttendanceController::class, 'show'])
-        ->where('date','\d{4}-\d{2}-\d{2}')->where('id','\d+')
+        ->whereNumber('id')->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendances.show');
     Route::post('/attendances/{date}/users/{id}', [AdminAttendanceController::class, 'update'])
-        ->where(['date'=>'\d{4}-/d{2}-\d{2}','id'=>'\d+'])
+        ->whereNumber('id')->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendances.update');
+
+    // 申請一覧/詳細/承認（管理）
+    Route::get('/requests', [AdminRequestController::class, 'index'])->name('requests.index'); // ?status=pending|approved
+    Route::get('/requests/{id}', [AdminRequestController::class, 'show'])->whereNumber('id')->name('requests.show');
+    Route::post('/requests/{id}/approve', [AdminRequestController::class, 'approve'])->whereNumber('id')->name('requests.approve');    
+
 
     // スタッフ一覧
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
@@ -134,11 +141,5 @@ Route::middleware(['auth', 'verified', 'can:admin-only'])
     Route::get('/requests/pending', [AdminRequestController::class, 'pending'])->name('requests.pending');
     Route::get('/requests/approved', [AdminRequestController::class, 'approved'])->name('requests.approved');
 
-    // 申請の詳細（= 共通Bladeで表示）
-    Route::get('/requests/{id}', [AdminRequestController::class, 'show'])
-        ->where('id','\d+')
-        ->name('requests.show');
-    Route::post('/requests/{id}/approve', [AdminRequestController::class, 'approve'])
-        ->where('id','\d+')
-        ->name('requests.approve');
+
 });

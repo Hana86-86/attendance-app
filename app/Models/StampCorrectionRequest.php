@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StampCorrectionRequest extends Model
 {
@@ -21,7 +22,13 @@ class StampCorrectionRequest extends Model
 
     public function attendance()
     {
-        return $this->belongsTo(\App\Models\Attendance::class);
+        return $this->belongsTo(Attendance::class, 'attendance_id');
+    }
+
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
 

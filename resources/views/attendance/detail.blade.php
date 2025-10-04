@@ -1,4 +1,4 @@
-@extends(($role ?? 'staff') === 'admin' ? 'layouts.admin' : 'layouts.staff')
+@extends((($role ?? 'staff') === 'admin') ? 'layouts.admin' : 'layouts.staff') 
 
 @section('title', '勤怠詳細')
 
@@ -10,9 +10,20 @@
   $footer   = $footer   ?? 'request';               // 'request'|'message'|'admin_update'|'approve'|'approved'
   $form     = $form     ?? null;                    // ['action'=>..., 'method'=>...]
   $timeMode = $canEdit ? 'input' : 'text';
+  // $form が null でも安全に取り出す
+  $formAction = is_array($form) ? ($form['action'] ?? '') : '';
+  $formMethod = is_array($form) ? ($form['method'] ?? 'post') : 'post';
 @endphp
 
 <x-page-title>勤怠詳細</x-page-title>
+
+@if($formAction !== '')
+  <form method="post" action="{{ $formAction }}">
+    @csrf
+    @if(strtolower($formMethod) !== 'post')
+      @method($formMethod)
+    @endif
+@endif
 
 <div class="card" style="max-width:720px;">
   <table width="100%" cellspacing="0" cellpadding="10" style="border-collapse:separate; border-spacing:0;">
@@ -49,40 +60,64 @@
         <td style="color:#666;">日付</td>
         <td>
           <div class="mono" style="height:38px; border:1px solid #ddd; border-radius:6px; padding:0 10px; display:flex; align-items:center;">
-            {{ \Carbon\Carbon::parse($date)->isoFormat('YYYY年') }}
+            {{ $dateY }}
           </div>
         </td>
         <td></td>
         <td>
           <div class="mono" style="height:38px; border:1px solid #ddd; border-radius:6px; padding:0 10px; display:flex; align-items:center;">
-            {{ \Carbon\Carbon::parse($date)->isoFormat('M月D日') }}
+            {{ $dateMD }}
           </div>
         </td>
       </tr>
 
       {{-- 出勤・退勤 --}}
-      <x-time-row label="出勤・退勤" :start="$clockIn ?? ''" :end="$clockOut ?? ''" :mode="$timeMode" />
+      <x-time-row
+      label="出勤・退勤"
+      nameStart="clock_in"
+      nameEnd="clock_out"
+      :start="$clockIn ?? ''"
+      :end="$clockOut ?? ''"
+      :mode="$timeMode"
+      />
 
-      {{-- 休憩 --}}
-      <x-time-row label="休憩"    :start="$break1In ?? ''" :end="$break1Out ?? ''" :mode="$timeMode" />
+      {{-- 休憩 1 --}}
+      <x-time-row
+      label="休憩"
+      nameStart="breaks[0][start]"
+      nameEnd="breaks[0][end]"
+      :start="$break1In ?? ''"
+      :end="$break1Out ?? ''"
+      :mode="$timeMode"
+      />
 
-      {{-- 休憩2（空欄OK） --}}
-      <x-time-row label="休憩2"   :start="$break2In ?? ''" :end="$break2Out ?? ''" :mode="$timeMode" />
+      {{-- 休憩２（空欄OK）--}}
+      <x-time-row
+      label="休憩2"
+      nameStart="breaks[1][start]"
+      nameEnd="breaks[1][end]"
+      :start="$break2In ?? ''"
+      :end="$break2Out ?? ''"
+      :mode="$timeMode"
+      />
 
-      {{-- 備考 --}}
+      {{-- 備考（必須） --}}
       <tr>
-        <td style="color:#666;">備考</td>
+      <td style="color:#666;">備考</td>
         <td colspan="3">
-        @if($canEdit)
-          <textarea name="note" rows="3" placeholder="備考を入力"
-            style="width:100%; border:1px solid #ddd; border-radius:6px; padding:8px 10px;">{{ old('note', $note) }}</textarea>
-        @else
-          <div style="min-height:38px; border:1px solid #ddd; border-radius:6px; padding:8px 10px;">
-            {{ $note !== '' ? $note : '—' }}
-        </div>
-    @endif
-  </td>
-</tr>
+        <textarea
+        name="note"
+        rows="3"
+        required
+        maxlength="500"
+        placeholder="備考を入力"
+        style="width:100%; height:90px; border:1px solid #ddd; border-radius:6px; padding:8px 10px;">
+        {{ old('note', $note ?? '') }}</textarea>
+        @error('note')
+            <p class="error" style="color:#e06;margin-top:6px;">{{ $message }}</p>
+        @enderror
+        </td>
+      </tr>
     </tbody>
   </table>
 
@@ -93,38 +128,31 @@
     </div>
   @endif
 
-  {{-- 右下フッター（役割・状態で切替） --}}
+  {{-- 右下フッター（ボタンだけ） --}}
   <div style="text-align:right; margin-top:12px;">
     @switch($footer)
-      @case('request')      {{-- スタッフ：修正申請 --}}
-        <form method="post" action="{{ $form['action'] }}">
-          @csrf
-          <x-button variant="primary">修正</x-button>
-        </form>
+      @case('request')       {{-- スタッフ：修正申請 --}}
+      @case('admin_update')  {{-- 管理者：直接修正 --}}
+        <x-button type="submit" variant="primary">修正</x-button>
       @break
 
-      @case('message')      {{-- スタッフ：申請済みで編集不可 --}}
-        <span class="btn btn-disabled" aria-disabled="true">承認待ち</span>
+      @case('approve')       {{-- 管理者：申請を承認 --}}
+        <x-button type="submit" variant="primary">承認</x-button>
       @break
 
-      @case('admin_update') {{-- 管理者：直接修正 --}}
-        <form method="post" action="{{ $form['action'] }}">
-          @csrf
-          <x-button variant="primary">修正</x-button>
-        </form>
-      @break
-
-      @case('approve')      {{-- 管理者：申請詳細 承認ボタン --}}
-        <form method="post" action="{{ $form['action'] }}">
-          @csrf
-          <x-button variant="primary">承認</x-button>
-        </form>
-      @break
-
-      @case('approved')     {{-- 管理者：申請詳細 承認済み表示 --}}
+      @case('approved')      {{-- 管理者：承認済み表示 --}}
         <span class="btn btn-disabled" aria-disabled="true">承認済み</span>
+      @break
+
+      @case('message')       {{-- スタッフ：承認待ちで編集不可 --}}
+        <p style="color:#e06;margin-bottom:6px;">※ 承認待ちのため修正はできません。</p>
+        <span class="btn btn-disabled" aria-disabled="true">承認待ち</span>
       @break
     @endswitch
   </div>
 </div>
+
+@if($formAction !== '')
+  </form>
+@endif
 @endsection

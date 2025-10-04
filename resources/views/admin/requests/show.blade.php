@@ -1,28 +1,27 @@
-//後で削除するファイル！
 @extends('layouts.admin')
 
 @section('content')
-  <x-page-title>勤怠詳細（申請）</x-page-title>
+<x-page-title>申請詳細</x-page-title>
 
-  <div class="card" style="display:grid; gap:14px; max-width:700px;">
-    <div class="field"><label>名前</label><input class="input" value="西 伶奈" readonly></div>
-    <div class="field"><label>日付</label><input class="input" type="date" value="2023-06-01" readonly></div>
+<div class="card" style="max-width:780px">
+  <table class="table">
+    <tr><th>申請者</th><td>{{ $req->user->name }}</td></tr>
+    <tr><th>対象日</th><td>{{ optional($req->attendance)->work_date ?? '-' }}</td></tr>
+    <tr><th>出勤</th><td>{{ $req->requested_clock_in  ?? '--:--' }}</td></tr>
+    <tr><th>退勤</th><td>{{ $req->requested_clock_out ?? '--:--' }}</td></tr>
+    <tr><th>備考</th><td>{{ $req->note }}</td></tr>
+    <tr><th>状態</th><td>{{ $req->status }}</td></tr>
+  </table>
 
-    {{-- 申請内容：出勤/退勤/休憩の希望値（読み取り） --}}
-    <div style="display:grid; gap:10px; grid-template-columns:1fr 1fr;">
-      <div class="field"><label>申請：出勤</label><input class="input" value="09:00" readonly></div>
-      <div class="field"><label>申請：退勤</label><input class="input" value="18:00" readonly></div>
-    </div>
-    <div style="display:grid; gap:10px; grid-template-columns:1fr 1fr;">
-      <div class="field"><label>申請：休憩開始</label><input class="input" value="12:00" readonly></div>
-      <div class="field"><label>申請：休憩終了</label><input class="input" value="13:00" readonly></div>
-    </div>
+  @if ($req->status === 'pending')
+    <form method="post" action="{{ route('admin.requests.approve',['id'=>$req->id]) }}" style="margin-top:16px">
+      @csrf
+      <x-button type="submit" variant="primary">承認</x-button>
+    </form>
+  @else
+    <p style="margin-top:16px;color:#666">この申請は {{ $req->status }} です。</p>
+  @endif
+</div>
 
-    <div class="field"><label>申請理由</label><input class="input" value="電車遅延のため" readonly></div>
-
-    <div style="display:flex; gap:10px; margin-top:6px;">
-      <x-button variant="primary">承認</x-button>
-      
-    </div>
-  </div>
+<a class="btn" href="{{ route('admin.requests.index',['status'=>'pending']) }}" style="margin-top:12px">一覧へ</a>
 @endsection

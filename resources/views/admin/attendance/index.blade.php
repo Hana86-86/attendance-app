@@ -29,13 +29,15 @@
         <td class="mono">{{ $row['clock_out'] ?: '' }}</td>
         <td class="mono">{{ m2hm($row['break_min']) }}</td>
         <td class="mono">{{ m2hm($row['work_min']) }}</td>
-        <td>
-        @if (!empty($row['detail_url']))
-            <a class="btn btn-link" href="{{ route('admin.attendances.show', ['date' => $date, 'id' => $row['id']]) }}">詳細</a>
-        @else
-            <span class="btn btn-disabled" aria-disabled="true">詳細</span>
-        @endif
-        </td>
+        @php
+            $detailDate = \Carbon\Carbon::parse($row['work_date'])->format('Y-m-d');
+        @endphp
+
+    <td class="mono">
+    <a class="btn btn-link" href="{{ route('admin.attendances.show', ['date' => $detailDate, 'id' => $row['user_id']]) }}">
+    詳細
+    </a>
+    </td>
     </tr>
     @empty
     <tr><td colspan="6" class="empty">表示できるデータがありません。</td></tr>
