@@ -70,17 +70,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->where('month','\d{4}-\d{2}')
         ->name('attendance.list');
 
-    // 修正申請（スタッフ）
-    Route::post('/requests/{date}', [StampCorrectionRequestController::class, 'store'])
-        ->where('date','\d{4}-\d{2}-\d{2}')
+    // 修正申請・詳細
+    Route::post('/requests', [StampCorrectionRequestController::class, 'store'])
         ->name('requests.store');
 
     // スタッフの申請一覧・詳細（承認は無し）
     Route::get('/requests', [StampCorrectionRequestController::class, 'index'])
-        ->name('requests.list'); // ?status=pending|approved
-    Route::get('/requests/{id}', [StampCorrectionRequestController::class, 'show'])
-        ->whereNumber('id')
-        ->name('requests.show');
+        ->name('requests.list');
 
 // ======================================================
 // 共通ログアウト（スタッフ側） POST
@@ -122,13 +118,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','verified','can:admin
     Route::post('/attendances/{date}/users/{id}', [AdminAttendanceController::class, 'update'])
         ->whereNumber('id')->where('date','\d{4}-\d{2}-\d{2}')
         ->name('attendances.update');
-
-    // 申請一覧/詳細/承認（管理）
-    Route::get('/requests', [AdminRequestController::class, 'index'])->name('requests.index'); // ?status=pending|approved
-    Route::get('/requests/{id}', [AdminRequestController::class, 'show'])->whereNumber('id')->name('requests.show');
-    Route::post('/requests/{id}/approve', [AdminRequestController::class, 'approve'])->whereNumber('id')->name('requests.approve');    
-
-
+    // 申請詳細・承認
+    // 同じURLで一覧/詳細を切り替える
+    Route::get('/requests', [AdminRequestController::class, 'index'])
+        ->name('requests.index');
+    // 承認（POSTして、同じURLに戻すだけ）
+   Route::post('/requests/approve', [AdminRequestController::class,'approve'])->name('requests.approve');
+    
     // スタッフ一覧
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
 
@@ -136,10 +132,5 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','verified','can:admin
     Route::get('/users/{id}/attendances/{month}', [AdminUserController::class, 'attendances'])
         ->where('id','\d+')->where('month','\d{4}-\d{2}')
         ->name('users.attendances');
-
-    // 申請（承認待ち／承認済み／詳細／承認）
-    Route::get('/requests/pending', [AdminRequestController::class, 'pending'])->name('requests.pending');
-    Route::get('/requests/approved', [AdminRequestController::class, 'approved'])->name('requests.approved');
-
 
 });

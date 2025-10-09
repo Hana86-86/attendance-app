@@ -1,30 +1,38 @@
 @extends('layouts.base')
 
-@section('title','スタッフ | 勤怠')
+@section('title', 'スタッフ | 勤怠')
 
-{{-- スタッフナビ --}}
-
+{{-- ヘッダーのナビだけ定義 --}}
 @section('nav')
 @php
-  // 現在月が渡っていない場合は今月を使う
   $currentMonth = $currentMonth ?? now()->format('Y-m');
 @endphp
 
-<nav class="nav">
-  <a href="{{ route('attendance.create', ['date' => today()->toDateString()]) }}"
-     class="{{ request()->routeIs('attendance.create') ? 'active' : '' }}">勤怠</a>
+<nav class="nav-bar">
+  <ul class="nav-links">
+    <li>
+      <a href="{{ route('attendance.create', ['date' => today()->toDateString()]) }}"
+          class="{{ request()->routeIs('attendance.create') ? 'active' : '' }}">
+        勤怠
+      </a>
+    </li>
+    <li>
+      <a href="{{ route('attendance.list', ['month' => $currentMonth]) }}"
+          class="{{ request()->routeIs('attendance.list') || request()->routeIs('attendance.detail') ? 'active' : '' }}">
+        勤怠一覧
+      </a>
+    </li>
+    <li>
+      <a href="{{ route('requests.list', ['status' => request('status','pending')]) }}"
+          class="{{ request()->routeIs('requests.*') ? 'active' : '' }}">
+        申請一覧
+      </a>
+    </li>
+  </ul>
 
-  <a href="{{ route('attendance.list', ['month' => now()->format('Y-m')]) }}"
-   class="{{ request()->routeIs('attendance.list') || request()->routeIs('attendance.detail') ? 'active' : '' }}">
-  勤怠一覧
-</a>
-
-  <a href="{{ route('requests.list') }}"
-     class="{{ request()->routeIs('requests.*') ? 'active' : '' }}">申請</a>
-
-  <form method="POST" action="{{ route('logout') }}" class="nav_logout">
+  <form method="POST" action="{{ route('logout') }}" class="nav-logout">
     @csrf
-    <button type="submit">ログアウト</button>
+    <button type="submit" class="as-link">ログアウト</button>
   </form>
 </nav>
 @endsection

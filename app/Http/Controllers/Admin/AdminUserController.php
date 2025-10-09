@@ -15,11 +15,11 @@ class AdminUserController extends Controller
 
     public function index()
     {
-        $users = User::where('role', 'user')  // 管理者は除外
+        $users = User::where('role', 'user')
             ->orderBy('id')
             ->get(['id','name','email']);
 
-        $month = now()->format('Y-m');        // 月次リンク用（当月）
+        $month = now()->format('Y-m');
 
         return view('admin.users.index', compact('users','month'));
     }
@@ -39,7 +39,6 @@ class AdminUserController extends Controller
             ->get()
             ->keyBy('work_date');
 
-        // 画面に渡す行データ（管理者一覧の形に合わせて生成）
         $list = [];
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
             $date = $d->toDateString();
@@ -47,9 +46,7 @@ class AdminUserController extends Controller
 
             $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
             $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
-
-            // 休憩・合計の計算はあなたの既存ロジックに合わせて調整
-            $breakMin = 0;  // TODO: breakTimes から算出
+            $breakMin = 0;
             $workMin  = ($att?->clock_in && $att?->clock_out)
                         ? Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out)) - $breakMin
                         : null;

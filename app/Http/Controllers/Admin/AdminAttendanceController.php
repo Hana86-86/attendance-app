@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\PacksAttendance;
 use App\Http\Requests\Attendance\UpdateRequest;
-use App\Http\Controllers\Controller; //親クラス
-use Carbon\Carbon;                   //日付操作
+use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use App\Models\User;
-use App\Models\Attendance;           //勤怠(休憩はリレーションで取得）
+use App\Models\Attendance;
 use Illuminate\Support\Collection;
 use App\Models\StampCorrectionRequest;
 use Illuminate\Support\Facades\DB;
@@ -18,68 +18,64 @@ class AdminAttendanceController extends Controller
 
     public function index(string $date)
     {
-        // 管理者は除外（role = 'user' のみ表示）
-        $users = User::where('role', 'user')
-        ->orderBy('id')
-        ->get(['id','name']);
+        $users = User::where('role', 'user')->orderBy('id')->get(['id','name']);
 
+    $atts = Attendance::with('breakTimes')
+        ->whereDate('work_date', $date)
+        ->get()
+        ->keyBy('user_id');
 
-        $atts = Attendance::with('breakTimes')
-            ->where('work_date', today())
-            ->get()
-            ->keyBy('user_id');
+    $list = [];
+    foreach ($users as $u) {
+        $att = $atts->get($u->id);
 
-        $list = [];
-        foreach ($users as $u) {
-            $att = $atts->get($u->id);  // 該当ユーザーの勤怠（無ければ null）
+        $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
+        $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
 
-            $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
-            $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
         // 休憩合計（分）
-            $breakMin = 0;
-            foreach ($att?->breakTimes ?? [] as $bt) {
-                if ($bt->start && $bt->end) {
-                    $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
-                }
+        $breakMin = 0;
+        foreach ($att?->breakTimes ?? [] as $bt) {
+            if ($bt->start && $bt->end) {
+                $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
             }
-            $breakMin = $breakMin > 0 ? (int)$breakMin :0;  // 0 なら空表示
-        // 勤務合計（分）＝(退勤-出勤)-休憩）
-            $workMin = null;
-            if ($att?->clock_in && $att?->clock_out) {
-                $total = Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out));
-                $workMin = max(0, $total - $breakMin);
-            }
-            $dateYmd = Carbon::parse($date)->format('Y-m-d');
-        // テーブル1行分
-            $list[] = [
-                'user_id'   => $u->id,
-                'name'      => $u->name,
-                'clock_in'  => $clockIn,                 // 'H:i' or ''
-                'clock_out' => $clockOut,                // 'H:i' or ''
-                'break_min' => $breakMin ?: null,        // 数字 or null
-                'break_hm'  => $this->toHM(is_null($breakMin) ? null : (int)$breakMin),
-                'work_min'  => $workMin,                 // 数字 or null
-                'work_hm'   => $this->toHM(is_null($workMin)  ? null : (int)$workMin),    // 'h:mm' or ''
-                'work_date' => $dateYmd,            // ★ Blade が参照
-                'detail_url' => route('admin.attendances.show', [
+        }
+        $breakMin = $breakMin ?: null;
+
+        // 勤務合計（分）
+        $workMin = null;
+        if ($att?->clock_in && $att?->clock_out) {
+            $total   = Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out));
+            $workMin = max(0, $total - (int)($breakMin ?? 0));
+        }
+
+        $dateYmd = Carbon::parse($date)->format('Y-m-d');
+
+        $list[] = [
+            'user_id'    => $u->id,
+            'name'       => $u->name,
+            'clock_in'   => $clockIn,
+            'clock_out'  => $clockOut,
+            'break_min'  => $breakMin,
+            'work_min'   => $workMin,
+            'work_date'  => $dateYmd,
+            'detail_url' => route('admin.attendances.show', [
                 'date' => $dateYmd,
                 'id'   => $u->id,
             ]),
         ];
-        }
-
-        return view('admin.attendance.index', [
-            'title'   => Carbon::parse($date)->isoFormat('YYYY/MM/DD (dd)'),
-            'date'    => $date,
-            'prevDate'=> Carbon::parse($date)->subDay()->toDateString(),
-            'nextDate'=> Carbon::parse($date)->addDay()->toDateString(),
-            'list'    => $list, // 配列（行）のリスト
-        ]);
     }
+
+    return view('admin.attendance.index', [
+        'title'    => Carbon::parse($date)->isoFormat('YYYY/MM/DD (dd)'),
+        'date'     => $date,
+        'prevDate' => Carbon::parse($date)->subDay()->toDateString(),
+        'nextDate' => Carbon::parse($date)->addDay()->toDateString(),
+        'list'     => $list,
+    ]);
+}
 
     public function show(string $date, int $id)
 {
-    // 対象ユーザー 勤怠を取得
     $user = User::findOrFail($id);
 
     $attendance = Attendance::with('breakTimes')
@@ -94,9 +90,11 @@ class AdminAttendanceController extends Controller
         ->when($attendanceId, fn ($q) => $q->where('attendance_id', $attendanceId))
         ->latest('id')
         ->first();
-    $status     = 'editable';
-    $footer     = 'admin_update';
-    $canEdit    = true;
+
+    // 画面状態
+    $status  = 'editable';
+    $footer  = 'admin_update';
+    $canEdit = true;
 
     if ($pendingRequest) {
         if ($pendingRequest->status === 'pending') {
@@ -105,28 +103,35 @@ class AdminAttendanceController extends Controller
             $canEdit = true;
         } elseif ($pendingRequest->status === 'approved') {
             $status  = 'approved';
-            $footer  = 'approved';    // ボタン「承認済み」
+            $footer  = 'approved';
             $canEdit = false;
         }
     }
+
+    $requestId = optional($pendingRequest)->id;
+
     $ui = [
-        'role'     => 'admin',
-        'status'   => $status,        // 'editable' | 'pending' | 'approved'
-        'editable' => $canEdit,       // 入力可否
-        'footer'   => $footer,        // 'admin_update' | 'approve' | 'approved'
-        'form'     => match ($footer) {
-            'approve'      => ['action' => route('admin.requests.approve', ['id' => $requestId]), 'method' => 'post'],
+        'role'    => 'admin',
+        'status'  => $status,       // 'editable' | 'pending' | 'approved'
+        'canEdit' => $canEdit,
+        'footer'  => $footer,       // 'admin_update' | 'approve' | 'approved'
+        'form'    => match ($footer) {
+            'approve'      => ['action' => route('admin.requests.approve'), 'method' => 'post'],
             'admin_update' => ['action' => route('admin.attendances.update', ['date' => $date, 'id' => $user->id]), 'method' => 'post'],
             default        => null,
         },
     ];
 
-    return view('attendance.detail', array_merge($this->packDetail($attendance, $user, $date, $ui),
-    [
-        'dateY'  => \Carbon\Carbon::parse($date)->isoFormat('YYYY年'),
-        'dateMD' => \Carbon\Carbon::parse($date)->isoFormat('M月D日'),
-    ]
-));
+    $vars = $this->packDetail($attendance, $user, $date, $ui);
+    $vars['detailId'] = $requestId; // hidden 用
+
+    $vars['title']    = Carbon::parse($date)->isoFormat('YYYY/MM/DD (dd)');
+    $vars['date']     = $date;
+    $vars['prevDate'] = Carbon::parse($date)->subDay()->toDateString();
+    $vars['nextDate'] = Carbon::parse($date)->addDay()->toDateString();
+
+    // 詳細でも index.blade を使い回す
+    return view('admin.attendance.index', $vars);
 }
 
     public function update(string $date, int $id, UpdateRequest $request)

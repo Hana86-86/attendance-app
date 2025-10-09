@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\PacksAttendance;
 use App\Http\Controllers\Controller;
 use App\Models\StampCorrectionRequest;
 use App\Models\Attendance;
@@ -12,63 +13,105 @@ use Carbon\Carbon;
 
 class AdminRequestController extends Controller
 {
-    // 一覧（?status=pending|approved）
+    use PacksAttendance;
+
     public function index(Request $request)
     {
-        $status = $request->query('status', 'pending');
+        $status   = in_array($request->get('status'), ['pending','approved']) ? $request->get('status') : 'pending';
+        $detailId = $request->get('id');
 
         $list = StampCorrectionRequest::with(['user','attendance'])
-            ->when(in_array($status, ['pending','approved']), fn($q) => $q->where('status', $status))
-            ->latest('created_at')
-            ->get();
+                    ->when($status, fn($q) => $q->where('status',$status))
+                    ->orderByDesc('id')
+                    ->get();
 
-        return view('admin.requests.index', compact('status','list'));
-    }
+        $detail     = null;
+        $detailVars = [];
 
-    // 詳細
-    public function show(int $id)
-    {
-        $req = StampCorrectionRequest::with(['user','attendance'])->findOrFail($id);
-        return view('admin.requests.show', compact('req'));
-    }
+        if ($detailId) {
+            $detail = StampCorrectionRequest::with(['user','attendance.breakTimes'])->find($detailId);
+            if ($detail) {
+                $attendance = $detail->attendance;
 
-    // 承認（★ここが本体）
-    public function approve(int $id, Request $request)
-    {
-        $req = StampCorrectionRequest::lockForUpdate()->findOrFail($id);
-        if ($req->status !== 'pending') {
-            return back()->withErrors(['status' => 'この申請は処理済みです。']);
+                $baseDate = optional($attendance?->work_date)?->toDateString()
+                            ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
+
+                $ui = [
+                    'role'    => 'admin',
+                    'status'  => $detail->status === 'pending' ? 'pending' : 'approved',
+                    'canEdit' => false,
+                    'footer'  => $detail->status === 'pending' ? 'approve' : 'approved',
+                    'form'    => $detail->status === 'pending'
+                                    ? [
+                                        'action' => route('admin.requests.approve'),
+                                        'method' => 'post',
+                                    ]
+                                    : null,
+                ];
+
+                $detailVars = $this->packDetail($attendance, $detail->user, $baseDate, $ui);
+
+                $detailVars['detailId'] = $detail->id;
+            }
         }
 
-        DB::transaction(function () use ($req) {
-            // 勤怠を確定/作成
-            $attendance = Attendance::firstOrCreate(
-                ['id' => $req->attendance_id],
-                ['user_id' => $req->user_id, 'work_date' => Carbon::parse($req->requested_clock_in ?? $req->requested_clock_out ?? now())->toDateString()]
-            );
-
-            // 出退勤
-            if ($req->requested_clock_in)  $attendance->clock_in  = $req->requested_clock_in;
-            if ($req->requested_clock_out) $attendance->clock_out = $req->requested_clock_out;
-
-            // 休憩（配列なら回すが、今回は単純に 0..2 本を想定）
-            $attendance->breakTimes()->delete();
-            foreach ([$req->requested_break_start, $req->requested_break_end] as $idx => $val) {
-                // 2本目対応するなら別カラムに合わせて増やす
-            }
-            // NOTE: 必要ならここで $attendance->breakTimes()->create([...]) を実装
-
-            $attendance->status = $attendance->clock_out ? 'closed' : 'working';
-            $attendance->save();
-
-            // 申請を承認へ
-            $req->update([
-                'status'     => 'approved',
-                'reviewed_by'=> Auth::id(),
-                'reviewed_at'=> now(),
-            ]);
-        });
-
-        return redirect()->route('admin.requests.show', ['id'=>$id])->with('success','申請を承認しました。');
+        return view('admin.requests.index', compact('status','list','detail','detailVars'));
     }
+    // 承認（同じURLに戻ってボタンが「承認済み」に変わる）
+public function approve(Request $request)
+{
+    $id      = (int)$request->input('id');
+    $backUrl = (string)$request->input('redirect', '');
+
+    $req = StampCorrectionRequest::lockForUpdate()->with(['attendance'])
+            ->findOrFail($id);
+
+    if ($req->status !== 'pending') {
+        return redirect($backUrl ?: route('admin.requests.index', ['status' => 'approved']))
+            ->withErrors(['status' => 'この申請は処理済みです。']);
+    }
+
+    //  反映処理 ----
+    DB::transaction(function () use ($req) {
+
+        // 勤怠を取得/作成
+        $attendance = Attendance::firstOrCreate(
+            ['id' => $req->attendance_id],
+            [
+                'user_id'  => $req->user_id,
+                'work_date' => Carbon::parse($req->requested_clock_in ?? $req->requested_clock_out ?? now())
+                                    ->toDateString(),
+            ]
+        );
+
+        // 出退勤の反映（存在するものだけ上書き）
+        if ($req->requested_clock_in)  $attendance->clock_in  = $req->requested_clock_in;
+        if ($req->requested_clock_out) $attendance->clock_out = $req->requested_clock_out;
+
+        // 休憩の反映
+        $attendance->breakTimes()->delete();
+        foreach (($req->requested_break ?? []) as $idx => $val) {
+
+            $attendance->breakTimes()->create([
+                'start' => $val['start'] ?? null,
+                'end'   => $val['end']   ?? null,
+            ]);
+        }
+
+        // 勤怠ステータス
+        $attendance->status = $attendance->clock_out ? 'closed' : 'working';
+        $attendance->save();
+
+        // 申請を承認済みに更新
+        $req->update([
+            'status'      => 'approved',
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+    });
+
+    //  同じURLへ戻す
+    return redirect($backUrl ?: route('admin.requests.index', ['status' => 'approved', 'id' => $id]))
+        ->with('success', '承認しました。');
+}
 }

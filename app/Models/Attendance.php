@@ -12,11 +12,11 @@ class Attendance extends Model
 {
 
     protected $fillable = [
-        'user_id',      // ユーザーID
-        'work_date',    // 勤務日（DATE）
-        'clock_in',     // 出勤（DATETIME/TIME）
-        'clock_out',    // 退勤（DATETIME/TIME）
-        'status',       // 勤怠状態: working / closed など
+        'user_id',
+        'work_date',
+        'clock_in',
+        'clock_out',
+        'status',
     ];
 
     protected $casts = [

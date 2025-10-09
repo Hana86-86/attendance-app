@@ -1,0 +1,201 @@
+/* ========== 基本トークン ========== */
+:root{
+  --bg:#f1f1f3; --panel:#fff; --ink:#111; --muted:#707070;
+  --brand:#111; --accent:#111; --radius:12px;
+  --gutter:20px; --gutter-lg:28px;
+  --wrap: clamp(960px, 92vw, 1320px);
+}
+
+*{ box-sizing:border-box }
+html,body{
+  margin:0; padding:0; background:var(--bg); color:var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+               "ヒラギノ角ゴ ProN","Hiragino Kaku Gothic ProN","Noto Sans JP",
+               "メイリオ", Meiryo, sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+img{ max-width:100%; height:auto }
+a{ color:inherit; text-decoration:none }
+
+/* ========== レイアウト ========== */
+.container{ max-width:var(--wrap); margin:0 auto; padding:0 var(--gutter) }
+@media (min-width:1024px){ .container{ padding:0 var(--gutter-lg) } }
+
+header.header{ background:var(--brand); color:#fff; position: sticky; top: 0; z-index: 1000; }
+.header__inner{
+height:64px;
+display:flex;
+align-items:center;
+gap:24px;
+justify-content: space-between;
+}
+
+
+/* ナビ（左リンク群＋右ログアウト） */
+.nav-bar{ display:flex; align-items:center; gap:16px; }
+.nav-links{ display:flex; gap:22px; list-style:none; margin:0; padding:0; }
+.nav-links a{ color:#fff; opacity:.9; padding:6px 4px; position:relative; }
+.nav-links a.active{ opacity:1; }
+.nav-links a.active::after{ content:""; position:absolute; left:0; right:0; bottom:-6px; height:2px; background:#fff; border-radius:2px; }
+.nav-logout{ margin-left:auto; }          /* ← 右端に押し出す */
+.btn-logout{ background:#fff; color:#111; border:1px solid #fff; padding:6px 16px; border-radius:6px; font-size:14px; cursor:pointer; }
+.btn-logout:hover{ opacity:.9; }
+/* ブランド表示（ロゴ＋テキスト） */
+.brand{ display:flex; align-items:center; gap:12px }
+.brand img{ height:24px; display:block }
+.brand strong{ font-weight:700; letter-spacing:.08em }
+
+/* メイン */
+main.main{ padding:28px 0 60px }
+.main.--centered{
+  min-height:calc(100vh - 64px - 48px);
+  display:flex; align-items:center; justify-content:center; padding:28px 0;
+}
+
+/* 見出しバー */
+.page-head{ margin:24px 0 16px; display:flex; align-items:center; gap:12px }
+.page-head .bar{ width:4px; height:22px; background:var(--ink); border-radius:2px }
+.page-head h1{ font-size:20px; margin:0 }
+
+/* ========== カード（汎用/勤怠） ========== */
+.card{
+  background:var(--panel); border-radius:var(--radius); padding:22px;
+  box-shadow:0 1px 0 rgba(0,0,0,.05), 0 10px 24px rgba(0,0,0,.05);
+}
+.card.--centered{
+  width:450px; margin:40px auto; padding:32px; border-radius:16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
+}
+
+/* バッジ */
+.state-badge{ text-align:center; margin-bottom:16px }
+.state-badge .badge, .state-badge span{
+  display:inline-block; padding:6px 12px; background:#f2f2f2; color:#555;
+  border:1px solid #e5e5e5; border-radius:9999px; font-size:14px; line-height:1;
+}
+.state-badge .is-working{ background:#eee; color:#333 }
+.state-badge .is-break{ background:#fff6e5; color:#8a5a00; border-color:#ffd9a8 }
+.state-badge .is-closed{ background:#f0f0f0; color:#666 }
+
+/* 日付＆時刻 */
+.date-meta{
+  display:flex; gap:8px; justify-content:center; align-items:baseline;
+  margin-bottom:24px; font-weight:600;
+}
+.date-meta .y{ font-size:18px; color:#666; margin:0 }
+.date-meta .md{ font-size:18px; color:#333; font-weight:600; margin:0 }
+.big-time{
+  text-align:center; font-weight:700; font-size:72px;
+  letter-spacing:.02em; margin:12px 0 32px;
+}
+
+/* ボタン（勤怠） */
+.actions{ display:flex; justify-content:center; gap:24px }
+.actions button{ font-size:18px; padding:14px 28px; border-radius:10px }
+.btn-primary,.btn-secondary{
+  display:inline-block; padding:16px 28px; font-size:18px; border-radius:14px; border:1px solid #000;
+}
+.btn-primary{ background:#000; color:#fff }
+.btn-secondary{ background:#fff; color:#000 }
+.btn-primary:hover,.btn-secondary:hover{ opacity:.9 }
+
+/* ========== フォーム汎用 ========== */
+.field{ display:grid; gap:6px }
+input,select,textarea{
+  width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; min-width:0;
+}
+input.is-invalid,select.is-invalid,textarea.is-invalid{ border-color:#a40000; background:#fff7f7 }
+p.error{ color:#a40000; font-size:14px; margin:6px 0 0 }
+
+.btn{ display:inline-block; padding:10px 18px; border-radius:10px; border:1px solid var(--accent); background:#fff; color:var(--ink); cursor:pointer; transition:.15s }
+.btn.primary{ background:var(--accent); color:#fff }
+.btn:hover{ transform:translateY(-1px) }
+
+/* メッセージ */
+.flash{ background:#fff0f0; border:1px solid #f0c7c7; padding:10px 12px; border-radius:10px }
+.danger{ background:#fff5f5; border:1px solid #ffd2d2; color:#a40000; padding:8px 12px; border-radius:10px }
+ul.errors{ margin:6px 0 18px }
+
+/* ========== テーブル（一覧系） ========== */
+.table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch }
+.table{
+  width:100%; border-collapse:separate; border-spacing:0; background:#fff; border-radius:12px;
+}
+.table th,.table td{
+  padding:12px 14px; border-bottom:1px solid #eee; font-size:14px; white-space:nowrap;
+}
+.table thead th{ background:#fafafa; font-weight:700 }
+.table tr:last-child td{ border-bottom:none }
+
+.att-toolbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; padding:8px 12px; margin-bottom:12px }
+.att-date{ height:36px; padding:0 10px }
+
+.text-left{ text-align:left } .mono{ font-variant-numeric:tabular-nums; white-space:nowrap }
+.empty{ text-align:center; color:#666 }
+
+/* お疲れ様でした */
+.finished{ text-align:center; font-size:18px; color:#333; margin-top:16px }
+
+/* スタッフ一覧の列幅ユーティリティ */
+.w-34{ width:34%; }
+.w-22{ width:22%; }
+.w-10{ width:10%; }
+
+/* ========== アクセシビリティ/レスポンシブ ========== */
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important } }
+@media (max-width:480px){
+  .card.--centered{ padding:24px 20px }
+  .date-meta .y{ font-size:14px } .date-meta .md{ font-size:16px }
+  .big-time{ font-size:44px; margin:8px 0 20px }
+  .btn-primary,.btn-secondary{ font-size:16px; padding:12px 20px; border-radius:12px }
+}
+
+/* ===== ヘッダーのナビをFigma寄せ ===== */
+.nav-links a{ padding:10px 12px; }
+.nav-links a.active::after{
+  bottom:-12px;         /* 下線を少し下に */
+  height:3px;           /* 下線を太く */
+}
+
+/* 「ログアウト」をリンク風に（POSTのまま見た目だけリンク） */
+.as-link{
+  background:transparent; border:none; color:#fff; padding:6px 4px;
+  font:inherit; cursor:pointer; opacity:.9;
+}
+.as-link:hover{ opacity:1; text-decoration:underline; }
+.nav-logout form{ display:inline; }   /* レイアウトを崩さない */
+
+/* ===== ページ内タブ（承認待ち / 承認済み） ===== */
+.seg-tabs{
+  display:flex; gap:28px; align-items:center;
+  margin:6px 0 18px;
+}
+.seg-tabs a{
+  color:#666; position:relative; padding:6px 2px;
+}
+.seg-tabs a.is-active{ color:#111; font-weight:700; }
+.seg-tabs a.is-active::after{
+  content:""; position:absolute; left:0; right:0; bottom:-8px;
+  height:2px; background:#111; border-radius:2px;
+}
+
+/* ===== 一覧カードの幅をFigma寄せ（やや狭く中央） ===== */
+.card.--narrow{
+  max-width: 900px;   /* 画面幅に応じて 860〜900 くらいがFigma感 */
+  margin: 0 auto;
+}
+
+/* テーブルのヘッダ感を少し強める */
+.table thead th{ background:#f6f6f6; }
+
+/* 余白の小調整（一覧上のツールバーなど） */
+.att-toolbar{ padding:10px 14px; margin:12px auto; }
+
+/* リンク風ボタン（ログアウト） */
+.as-link{ background:none; border:none; padding:0; color:#fff; cursor:pointer; font:inherit }
+.as-link:hover{ opacity:.85; text-decoration:underline }
+
+/* ページ内タブ（承認待ち/承認済み） */
+.page-tabs{ display:flex; gap:24px; margin:10px 0 18px; }
+.page-tabs a{ color:#555; padding:6px 4px; border-bottom:2px solid transparent; }
+.page-tabs a.is-active{ color:#111; border-color:#111; font-weight:600; }

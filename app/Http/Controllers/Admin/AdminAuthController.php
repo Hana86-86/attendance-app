@@ -11,17 +11,16 @@ class AdminAuthController extends Controller
 {
     public function showLoginForm(Request $request)
     {
-        // 過去の intended を消す（古い遷移先へ飛ばされないように）
         $request->session()->forget('url.intended');
 
         if (Auth::check()) {
-            // 非管理者でログイン中なら一旦ログアウトしてフォーム表示
+
             if ((Auth::user()->role ?? 'user') !== 'admin') {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
             } else {
-                // 既に管理者でログイン中なら管理TOPへ
+
                 return redirect()->route('admin.attendances.index', [
                     'date' => now()->toDateString(),
                 ]);
@@ -57,7 +56,6 @@ class AdminAuthController extends Controller
                 ->withErrors(['email' => '管理者権限がありません。'])
                 ->onlyInput('email');
         }
-
 
         return redirect()->route('admin.attendances.index', [
             'date' => now()->toDateString(),

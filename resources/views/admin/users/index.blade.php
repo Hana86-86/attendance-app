@@ -3,31 +3,37 @@
 @section('content')
   <x-page-title>スタッフ一覧</x-page-title>
 
-  <div class="card">
-    <table class="table" style="width:100% table-layout: fixed; text-align:center;">
-      <thead>
-        <tr>
-          <th style="width:33%;">名前</th>
-          <th style="width:33%;">メールアドレス</th>
-          <th style="width:34%;">月次勤怠</th>
-        </tr>
-      </thead>
-      <tbody>
-        @forelse ($users as $u)
+  <div class="table-wrap">
+    <div class="card">
+      <table class="table">
+        <thead>
           <tr>
-            <td>{{ $u->name }}</td>
-            <td>{{ $u->email }}</td>
-            <td>
-              <a class="btn btn-link"
-                  href="{{ route('admin.users.attendances', ['id' => $u->id, 'month' => $month]) }}">
-                詳細
-              </a>
-            </td>
+            <th class="w-34 text-left">名前</th>
+            <th class="w-34 text-left">メールアドレス</th>
+            <th class="w-22">月次集計</th>
+            <th class="w-10"></th>
           </tr>
-        @empty
-          <tr><td colspan="3" style="text-align:center;color:#666;">スタッフが登録されていません。</td></tr>
-        @endforelse
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @forelse ($users as $u)
+            <tr>
+              <td class="text-left">{{ $u->name }}</td>
+              <td class="text-left">{{ $u->email }}</td>
+              <td class="mono">-</td>
+              <td>
+                <a class="btn btn-link"
+                    href="{{ route('admin.users.attendances', ['id' => $u->id, 'month' => $month]) }}">
+                  詳細
+                </a>
+              </td>
+            </tr>
+          @empty
+            <tr>
+              <td colspan="4" class="empty">スタッフが登録されていません。</td>
+            </tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
   </div>
 @endsection

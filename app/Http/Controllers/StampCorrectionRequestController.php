@@ -7,77 +7,111 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\StampCorrectionRequest;
 use App\Http\Requests\Attendance\UpdateRequest;
+use App\Models\Attendance;
 use Carbon\Carbon;
+use App\Http\Controllers\Concerns\PacksAttendance;
 
 class StampCorrectionRequestController extends Controller
 {
-    // 一覧（承認待ち／承認済みを status で出し分け）
-    public function index(?string $status = 'pending')
+    use PacksAttendance;
+
+    public function index(Request $request)
     {
-        $status = in_array($status, ['pending','approved']) ? $status : 'pending';
+        $status = in_array($request->query('status'), ['pending', 'approved'])
+                ? $request->query('status')
+                : 'pending';
 
         $list = StampCorrectionRequest::where('user_id', Auth::id())
-            ->where('status', $status)
-            ->latest('created_at')
-            ->get();
+                ->where('status', $status)
+                ->latest('created_at')
+                ->get();
 
-        // 共通の一覧ビューを使用
-        return view('attendance.stamp_collection.list', [
-            'status' => $status,
-            'list'   => $list,
+        $detail     = null;
+        $detailVars = [];
+        if ($id = $request->query('id')) {
+            $detail = StampCorrectionRequest::with(['attendance','user'])->where('user_id', Auth::id())->find($id);
+
+            if ($detail) {
+                $baseDate = optional($detail->attendance?->work_date)?->toDateString()
+                            ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
+
+                // あとで修正する：スタッフは承認待ちなら編集不可・赤メッセージ、承認済みならボタンは「承認済み」
+                $ui = [
+                    'role'    => 'staff',
+                    'status'  => $detail->status === 'pending' ? 'pending' : 'approved',
+                    'canEdit' => false,
+                    'footer'  => $detail->status === 'pending' ? 'message' : 'approved',
+                    'form'    => null,
+                ];
+
+                $detailVars = $this->packDetail($detail->attendance, $detail->user, $baseDate, $ui);
+            }
+        }
+
+        return view('requests.list', [
+            'status'     => $status,
+            'list'       => $list,
+            'detail'     => $detail,
+            'detailVars' => $detailVars,
         ]);
     }
 
-    // 登録（勤怠詳細からPOST）※FormRequestでバリデーション
+
     public function store(string $date, UpdateRequest $request)
     {
         $data   = $request->validated();
         $breaks = $data['breaks'] ?? [];
 
+        $workDate = Carbon::parse($date)->toDateString();
+        $dt = function (?string $t) use ($workDate) {
+
+            return $t ? Carbon::createFromFormat('Y-m-d H:i', "{$workDate} {$t}") : null;
+        };
+
         $attendance = Attendance::where('user_id', Auth::id())
-        ->whereDate('work_date', $date)
-        ->first();
+            ->whereDate('work_date', $workDate)
+            ->first();
 
-        return DB::transaction(function () use ($date, $data, $breaks, $attendance) {
+        return DB::transaction(function () use ($workDate, $data, $breaks, $attendance, $dt) {
 
-            // 二重申請のガード
             $exists = StampCorrectionRequest::where('user_id', Auth::id())
-                ->when($attendance,
-                fn ($q) => $q->where('attendance_id', $attendance->id),
-                fn ($q) => $q->whereDate('requested_clock_in', $date)
-            )
-            ->exists();
+                ->when(
+                    $attendance,
+                    fn ($q) => $q->where('attendance_id', $attendance->id),
+                    fn ($q) => $q->whereDate('requested_clock_in', $workDate)
+                )
+                ->where('status', 'pending')
+                ->exists();
 
             if ($exists) {
-            return back()->withErrors(['status' => '同日の申請が未承認のまま既に存在します。']);
-    }
+                return back()
+                    ->withErrors(['status' => '同日の申請が未承認のまま既に存在します。'])
+                    ->withInput();
+            }
 
-            // 既存の当日勤怠
-            $attendance = Attendance::where('user_id', Auth::id())
-                            ->whereDate('work_date', date())
-                            ->first();
+            $requested_break = [];
+            foreach ([0, 1] as $i) {
+                $st = $breaks[$i]['start'] ?? null;
+                $ed = $breaks[$i]['end']   ?? null;
+                if ($st || $ed) {
+                    $requested_break[] = [
+                        'start' => $dt($st),
+                        'end'   => $dt($ed),
+                    ];
+                }
+            }
 
-            // 申請作成
             StampCorrectionRequest::create([
-                'user_id'               => Auth::id(),
-                'attendance_id'         => optional($attendance)->id,
-                'requested_clock_in'    => $data['clock_in']   ?? null,
-                'requested_clock_out'   => $data['clock_out']  ?? null,
-                'requested_break_start' => $breaks[0]['start'] ?? null,
-                'requested_break_end'   => $breaks[0]['end']   ?? null,
-                'note'                  => $data['note'],
-                'status'                => 'pending',
+                'user_id'             => Auth::id(),
+                'attendance_id'       => optional($attendance)->id,
+                'requested_clock_in'  => $dt($data['clock_in']  ?? null),
+                'requested_clock_out' => $dt($data['clock_out'] ?? null),
+                'requested_break'     => $requested_break,
+                'note'                => $data['note'],
+                'status'              => 'pending',
             ]);
 
             return back()->with('success', '修正申請を送信しました。');
         });
     }
-    public function show(int $id)
-{
-    $req = StampCorrectionRequest::with(['attendance','user'])->findOrFail($id);
-    return view('attendance.stamp_collection.list', [
-        'status' => $req->status ?? 'pending',
-        'list'   => collect([$req]),
-]);
-}
 }

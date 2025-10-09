@@ -1,6 +1,7 @@
 @extends('layouts.staff')
 
 @section('title','勤怠')
+@section('main_class','--centered')
 
 @section('content')
 <div class="card --centered">
@@ -16,57 +17,45 @@
   </div>
   <div class="big-time">{{ now()->format('H:i') }}</div>
 
-  {{-- フラッシュメッセージ --}}
-  @if (session('status'))
-    <div class="alert">{{ session('status') }}</div>
-  @endif
-
-  {{-- バリデーションエラー（1行ずつ） --}}
-  @if ($errors->any())
-    <div class="error">
-      @foreach ($errors->all() as $msg)
-        <div>{{ $msg }}</div>
-      @endforeach
-    </div>
-  @endif
-
-  {{-- ボタン出し分け：Figmaどおりの4状態 --}}
   @switch($state)
-
-    {{-- ① 未出勤：出勤のみ（黒） --}}
     @case('not_working')
-      <form method="POST" action="{{ route('attendance.clock-in') }}" class="actions --single">
-        @csrf
-        <button type="submit" class="btn btn-primary">出勤</button>
-      </form>
-      @break
+        {{-- 出勤前：出勤ボタンのみ --}}
+        <div class="actions">
+            <form method="POST" action="{{ route('attendance.clock-in') }}">
+                @csrf
+                <button type="submit" class="btn-primary">出勤</button>
+            </form>
+        </div>
+        @break
 
-    {{-- ② 勤務中：退勤（黒）＋ 休憩入（グレー） --}}
     @case('working')
-      <div class="actions --double">
-        <form method="POST" action="{{ route('attendance.clock-out') }}">
-          @csrf
-          <button type="submit" class="btn btn-primary">退勤</button>
-        </form>
-        <form method="POST" action="{{ route('attendance.break-in') }}">
-          @csrf
-          <button type="submit" class="btn btn-secondary">休憩入</button>
-        </form>
-      </div>
-      @break
+        {{-- 出勤後：退勤・休憩入 --}}
+        <div class="actions">
+            <form method="POST" action="{{ route('attendance.clock-out') }}">
+                @csrf
+                <button type="submit" class="btn-primary">退勤</button>
+            </form>
+            <form method="POST" action="{{ route('attendance.break-in') }}">
+                @csrf
+                <button type="submit" class="btn-secondary">休憩入</button>
+            </form>
+        </div>
+        @break
 
-    {{-- ③ 休憩中：休憩戻（黒）のみ --}}
     @case('on_break')
-      <form method="POST" action="{{ route('attendance.break-out') }}" class="actions --single">
-        @csrf
-        <button type="submit" class="btn btn-primary">休憩戻</button>
-      </form>
-      @break
+        {{-- 休憩中：休憩戻 --}}
+        <div class="actions">
+            <form method="POST" action="{{ route('attendance.break-out') }}">
+                @csrf
+                <button type="submit" class="btn-secondary">休憩戻</button>
+            </form>
+        </div>
+        @break
 
-    {{-- ④ 退勤済：メッセージのみ --}}
     @case('closed')
-      <div class="finished">お疲れ様でした。</div>
-      @break
-  @endswitch
+        {{-- 退勤後：お疲れ様でした --}}
+        <div class="finished">お疲れ様でした。</div>
+        @break
+@endswitch
 </div>
 @endsection

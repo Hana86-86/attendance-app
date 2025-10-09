@@ -1,26 +1,39 @@
 @extends('layouts.base')
 
 @section('nav')
-<nav class="nav">
-{{-- 日次一覧：パラメータ不要の today ルートに変更 --}}
-<a href="{{ route('admin.attendances.today') }}"
-   class="{{ request()->routeIs('admin.attendances.*') ? 'active' : '' }}">
-   勤怠一覧
-</a>
+<nav class="nav-bar">
+  <ul class="nav-links">
+    {{-- 勤怠一覧 --}}
+<li>
+  <a href="{{ route('admin.attendances.today') }}"
+      class="{{ request()->routeIs('admin.attendances.*') ? 'active' : '' }}">
+      勤怠一覧
+    </a>
+</li>
 
-<a href="{{ route('admin.users.index') }}"
-   class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-   スタッフ一覧
-</a>
+{{-- スタッフ一覧 --}}
+<li>
+  <a href="{{ route('admin.users.index') }}"
+      class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+      スタッフ一覧
+    </a>
+</li>
 
-<a href="{{ route('admin.requests.pending') }}"
-   class="{{ request()->routeIs('admin.requests.*') ? 'active' : '' }}">
-   申請一覧
-</a>
+{{-- ページ内タブで 承認待ち/承認済み を切替 --}}
+    <li>
+      <a href="{{ route('admin.requests.index', ['status' => 'pending']) }}"
+          class="{{ request()->routeIs('admin.requests.*') ? 'active' : '' }}">
+        申請一覧
+      </a>
+    </li>
 
-<form method="POST" action="{{ route('admin.logout') }}" style="display:inline">
-   @csrf
-   <button type="submit">ログアウト</button>
-</form>
+    {{-- ログアウト（リンク風ボタン：POST） --}}
+    <li class="nav-logout">
+      <form method="POST" action="{{ route('admin.logout') }}">
+        @csrf
+        <button type="submit" class="as-link">ログアウト</button>
+      </form>
+    </li>
+  </ul>
 </nav>
 @endsection

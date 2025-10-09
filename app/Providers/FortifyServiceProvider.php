@@ -11,7 +11,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\Auth\LoginRequest as UserLoginRequest;
 
-// Fortify の Contract を use
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
 
@@ -57,10 +56,8 @@ class FortifyServiceProvider extends ServiceProvider
             $form = UserLoginRequest::createFrom($request); // 入力値を持ったまま生成
             $form->setContainer(app())->setRedirector(app('redirect'));
 
-            // ここで rules()/messages() が実行
             $form->validateResolved();
 
-            // validated() で検証済みデータを取得
             $data = $form->validated();
 
             // スタッフ(role='user')だけを対象に認証
@@ -69,7 +66,7 @@ class FortifyServiceProvider extends ServiceProvider
                         ->first();
 
             if ($user && Hash::check($data['password'] ?? '', $user->password)) {
-                // OKならこのユーザーでログイン（webガード）
+                // webガード
                 return $user;
             }
 
