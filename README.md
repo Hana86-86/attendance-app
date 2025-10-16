@@ -63,6 +63,7 @@ Composer と npm の依存関係をコンテナ内でインストールします
    URL: http://localhost:8080
 
 ---
+![ER 図](./er-diagram.svg)
 
 認証メール送信設定（Mailtrap 利用）
 
