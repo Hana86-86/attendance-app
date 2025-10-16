@@ -105,8 +105,6 @@ public function approve(Request $request)
         // 申請を承認済みに更新
         $req->update([
             'status'      => 'approved',
-            'reviewed_by' => Auth::id(),
-            'reviewed_at' => now(),
         ]);
     });
 

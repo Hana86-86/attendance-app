@@ -16,8 +16,6 @@ class StampCorrectionRequest extends Model
         'requested_break_end',
         'reason',
         'status',        // 'pending' | 'approved' | 'rejected'
-        'reviewed_by',
-        'reviewed_at',
     ];
 
     public function attendance()
