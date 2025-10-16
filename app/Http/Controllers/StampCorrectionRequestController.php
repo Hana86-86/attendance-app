@@ -35,7 +35,7 @@ class StampCorrectionRequestController extends Controller
                 $baseDate = optional($detail->attendance?->work_date)?->toDateString()
                             ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
 
-                // あとで修正する：スタッフは承認待ちなら編集不可・赤メッセージ、承認済みならボタンは「承認済み」
+                // スタッフは承認待ちなら編集不可・赤メッセージ、承認済みならボタンは「承認済み」
                 $ui = [
                     'role'    => 'staff',
                     'status'  => $detail->status === 'pending' ? 'pending' : 'approved',
@@ -57,14 +57,17 @@ class StampCorrectionRequestController extends Controller
     }
 
 
-    public function store(string $date, UpdateRequest $request)
+    public function store(UpdateRequest $request)
     {
-        $data   = $request->validated();
+        $data  = $request->validated();
+
+        $inputDate = $request->input('date');
+
+        $workDate = Carbon::parse($inputDate)->toDateString();
+
         $breaks = $data['breaks'] ?? [];
 
-        $workDate = Carbon::parse($date)->toDateString();
         $dt = function (?string $t) use ($workDate) {
-
             return $t ? Carbon::createFromFormat('Y-m-d H:i', "{$workDate} {$t}") : null;
         };
 
@@ -107,7 +110,7 @@ class StampCorrectionRequestController extends Controller
                 'requested_clock_in'  => $dt($data['clock_in']  ?? null),
                 'requested_clock_out' => $dt($data['clock_out'] ?? null),
                 'requested_break'     => $requested_break,
-                'note'                => $data['note'],
+                'reason'              => $data['reason'] ?? '修正申請',
                 'status'              => 'pending',
             ]);
 

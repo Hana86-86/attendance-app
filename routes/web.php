@@ -70,11 +70,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->where('month','\d{4}-\d{2}')
         ->name('attendance.list');
 
-    // 修正申請・詳細
-    Route::post('/requests', [StampCorrectionRequestController::class, 'store'])
-        ->name('requests.store');
+    // 申請の保存
+    Route::post('/requests/attendance', [StampCorrectionRequestController::class, 'store'])
+    ->name('requests.store');
 
-    // スタッフの申請一覧・詳細（承認は無し）
+    // 申請一覧
     Route::get('/requests', [StampCorrectionRequestController::class, 'index'])
         ->name('requests.list');
 
@@ -123,14 +123,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth','verified','can:admin
     Route::get('/requests', [AdminRequestController::class, 'index'])
         ->name('requests.index');
     // 承認（POSTして、同じURLに戻すだけ）
-   Route::post('/requests/approve', [AdminRequestController::class,'approve'])->name('requests.approve');
-    
+    Route::post('/requests/approve', [AdminRequestController::class,'approve'])->name('requests.approve');
+
     // スタッフ一覧
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
 
-    // スタッフ別の月次一覧 例: /admin/users/12/attendances/2025-09
+    // スタッフ別の月次一覧
     Route::get('/users/{id}/attendances/{month}', [AdminUserController::class, 'attendances'])
         ->where('id','\d+')->where('month','\d{4}-\d{2}')
         ->name('users.attendances');
+    // csv出力
+    Route::get('admin/users/{id}/attendances/{month}/csv', [AdminUserController::class, 'exportMonth'])
+        ->where('id','\d+')->where('month','\d{4}-\d{2}')
+        ->name('users.attendances.csv');
 
 });

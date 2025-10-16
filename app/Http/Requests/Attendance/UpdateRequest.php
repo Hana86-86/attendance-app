@@ -20,14 +20,14 @@ class UpdateRequest extends FormRequest
             'breaks'          => ['array'],
             'breaks.*.start'  => ['nullable', 'date_format:H:i'],
             'breaks.*.end'    => ['nullable', 'date_format:H:i'],
-            'note'            => ['required', 'string', 'max:500'],
+            'reason'            => ['required', 'string', 'max:500'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'note.required' => '備考を記入してください',
+            'reason.required' => '備考を記入してください',
         ];
     }
 

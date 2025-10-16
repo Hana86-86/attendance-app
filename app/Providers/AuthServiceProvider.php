@@ -15,5 +15,10 @@ class AuthServiceProvider extends ServiceProvider
 
         // 管理者専用 Gate
         Gate::define('admin-only', fn($user) => ($user?->role ?? 'user') === 'admin');
+
+        // 勤怠データ閲覧用
+        Gate::define('view-attendance-of-user', function ($authUser, $targetUser) {
+        return $authUser->role === 'admin' || $authUser->id === $targetUser->id;
+    });
     }
 }

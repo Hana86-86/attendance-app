@@ -31,7 +31,7 @@
     @include('attendance.partials._detail-card', get_defined_vars())
 @else
     {{-- 一覧テーブル --}}
-    <div class="card --narrow">
+    <div class="card">
         <table class="table att-table">
         <thead>
         <tr>
@@ -52,8 +52,8 @@
                 <td class="text-left">{{ $row['name'] }}</td>
                 <td class="mono">{{ $row['clock_in']  ?: '' }}</td>
                 <td class="mono">{{ $row['clock_out'] ?: '' }}</td>
-                <td class="mono">{{ m2hm($row['break_min'] ?? null) }}</td>
-                <td class="mono">{{ m2hm($row['work_min']  ?? null) }}</td>
+                <td class="mono">{{ m2hm($row['break_min'] ?? 0) }}</td>
+                <td class="mono">{{ m2hm($row['work_min']  ?? 0) }}</td>
                 <td class="mono">
                 <a class="btn btn-link"
                     href="{{ route('admin.attendances.show', ['date' => $detailDate, 'id' => $row['user_id']]) }}">

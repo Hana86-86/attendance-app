@@ -7,11 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Attendance;
 use Carbon\Carbon;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Http\Controllers\Concerns\PacksAttendance;
 
 class AdminUserController extends Controller
 {
     use PacksAttendance;
+    use AuthorizesRequests;
 
     public function index()
     {
@@ -32,12 +34,11 @@ class AdminUserController extends Controller
         $from  = $base->copy()->startOfMonth();
         $to    = $base->copy()->endOfMonth();
 
-        // そのユーザーの当月勤怠をまとめて取得
         $atts = Attendance::with('breakTimes')
             ->where('user_id', $id)
             ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
             ->get()
-            ->keyBy('work_date');
+            ->keyBy(fn ($a) => \Carbon\Carbon::parse($a->work_date)->toDateString());
 
         $list = [];
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
@@ -68,13 +69,103 @@ class AdminUserController extends Controller
         ];
         }
 
-        return view('admin.attendance.index', [
-            'title'    => $base->isoFormat('YYYY/MM'),
-            'date'     => $base->toDateString(),           // ナビ用に基準日
-            'prevDate' => $base->copy()->subMonth()->toDateString(),
-            'nextDate' => $base->copy()->addMonth()->toDateString(),
-            'list'     => $list,
+        return view('admin.users.attendances', [
+                'user'      => $user,
+                'month'     => $base->format('Y-m'),
+                'prevMonth' => $base->copy()->subMonth()->format('Y-m'),
+                'nextMonth' => $base->copy()->addMonth()->format('Y-m'),
+                'list'      => $list,
+        ]);
+    }
+    public function exportMonth(int $id, string $month)
+    {
+        // 認可
+        $user = User::findOrFail($id);
+        $this->authorize('view-attendance-of-user', $user);
+
+        // 期間（その月の 1 日〜末日）
+        $base  = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
+        $start = $base->copy()->startOfMonth()->toDateString();
+        $end   = $base->copy()->endOfMonth()->toDateString();
+
+        // その月の勤怠を丸ごと取得（休憩も同時ロード）
+        $rows = Attendance::with('breakTimes')
+            ->where('user_id', $user->id)
+            ->whereBetween('work_date', [$start, $end])
+            ->orderBy('work_date')
+            ->get()
+            ->keyBy(fn ($r) => ($r->work_date instanceof Carbon)
+                ? $r->work_date->toDateString()
+                : Carbon::parse($r->work_date)->toDateString()
+            );
+
+        // ダウンロードファイル名
+        $filename = sprintf('attendance_%s_%s.csv', $user->id, $base->format('Ym'));
+
+        return response()->streamDownload(function () use ($start, $end, $rows, $user) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM
+            fwrite($out, "\xEF\xBB\xBF");
+
+            // 見出し行（Figma 構成に寄せています）
+            fputcsv($out, ['日付','出勤','退勤','休憩','合計','備考']);
+
+            // ユーティリティ
+            $hm = function (?int $minutes) {
+                if ($minutes === null) return '0:00';
+                $h = intdiv(max(0,$minutes), 60);
+                $m = max(0,$minutes) % 60;
+                return sprintf('%d:%02d', $h, $m);
+            };
+
+            // 1日ずつ出力
+            for ($d = Carbon::parse($start); $d->lte(Carbon::parse($end)); $d->addDay()) {
+                $date = $d->toDateString();
+                $att  = $rows->get($date);
+
+                // 表示文字列
+                $ci = $att?->clock_in;
+                $co = $att?->clock_out;
+                $clockIn  = $ci ? Carbon::parse($ci)->format('H:i') : '';
+                $clockOut = $co ? Carbon::parse($co)->format('H:i') : '';
+
+                // 休憩合計（分）
+                $breakMin = 0;
+                if ($att) {
+                    foreach ($att->breakTimes as $bt) {
+                        if ($bt->start && $bt->end) {
+                            $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
+                        }
+                    }
+                }
+                $breakMin = $breakMin ?: 0;
+
+                // 勤務合計（分）＝（退勤−出勤）− 休憩
+                $workMin = 0;
+                if ($ci && $co) {
+                    $total   = Carbon::parse($ci)->diffInMinutes(Carbon::parse($co));
+                    $workMin = max(0, $total - $breakMin);
+                }
+
+                // 備考
+                $reason = $att?->reason ?? '';
+
+                fputcsv($out, [
+                    Carbon::parse($date)->format('Y/m/d(D)'),
+                    $clockIn,
+                    $clockOut,
+                    $hm($breakMin),
+                    $hm($workMin),
+                    $reason,
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 }
+
+
 

@@ -47,6 +47,8 @@ class AdminAttendanceController extends Controller
             $total   = Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out));
             $workMin = max(0, $total - (int)($breakMin ?? 0));
         }
+        $breakHM = $this->toHM($breakMin);
+        $workHM  = $this->toHM($workMin);
 
         $dateYmd = Carbon::parse($date)->format('Y-m-d');
 
@@ -56,6 +58,8 @@ class AdminAttendanceController extends Controller
             'clock_in'   => $clockIn,
             'clock_out'  => $clockOut,
             'break_min'  => $breakMin,
+            'break_hm'   => $breakHM,
+            'work_hm'    => $workHM,
             'work_min'   => $workMin,
             'work_date'  => $dateYmd,
             'detail_url' => route('admin.attendances.show', [
@@ -150,7 +154,7 @@ class AdminAttendanceController extends Controller
             if (!empty($breaks[0])) {
                 $attendance->setBreakTimes($breaks);
             }
-            $attendance->note = $data['note'];
+            $attendance->reason = $data['reason'];
             $attendance->save();
 
             return back()->with('success', '勤怠を更新しました。');

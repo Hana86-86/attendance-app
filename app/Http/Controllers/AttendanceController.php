@@ -160,42 +160,34 @@ public function create()
 
     public function indexMonth(string $month)
 {
-    // 受け取った "YYYY-MM" をタイムゾーン付きでCarbon化
     $base  = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
 
-    // 月初～月末の文字列（Y-m-d）を作る
     $start = $base->copy()->startOfMonth()->toDateString();
     $end   = $base->copy()->endOfMonth()->toDateString();
 
-    // 画面ヘッダーなどに使う表示用文字列
-    $titleYM   = $base->isoFormat('YYYY/MM');     // 例: 2025/10
-    $prevMonth = $base->copy()->subMonth()->format('Y-m'); // 例: 2025-09
-    $nextMonth = $base->copy()->addMonth()->format('Y-m'); // 例: 2025-11
+    $titleYM   = $base->isoFormat('YYYY/MM');
+    $prevMonth = $base->copy()->subMonth()->format('Y-m');
+    $nextMonth = $base->copy()->addMonth()->format('Y-m');
 
-    // 対象月の勤怠を取得（休憩も同時ロード）
     $rows = Attendance::with('breakTimes')
         ->where('user_id', Auth::id())
         ->whereBetween('work_date', [$start, $end])
         ->orderBy('work_date')
         ->get();
 
-    // 日付キーの連想配列に変換
-    //    work_date が "文字列" でも "Carbon" でも toDateString() に統一する保険
     $byDate = $rows->keyBy(function ($r) {
-        $wd = $r->work_date;                              // 文字列かCarbon
-        return $wd instanceof Carbon                      // Carbonならそのまま
+        $wd = $r->work_date;
+        return $wd instanceof Carbon
             ? $wd->toDateString()
-            : Carbon::parse($wd)->toDateString();         // 文字列ならparse
+            : Carbon::parse($wd)->toDateString();
     });
 
-    // 1日ずつループ。$end は文字列なので Carbon にして比較（保険）
     $list = [];
     for ($d = Carbon::parse($start); $d->lte(Carbon::parse($end)); $d->addDay()) {
-        $date = $d->toDateString();        // 例: 2025-10-04
-        $att  = $byDate->get($date);       // その日の勤怠（なければnull）
+        $date = $d->toDateString();
+        $att  = $byDate->get($date);
 
-        // 出退勤のフォーマット（Carbonでも文字列でもOK）
-        $ci = $att?->clock_in;             // 文字列かCarbonかnull
+        $ci = $att?->clock_in;
         $co = $att?->clock_out;
 
         $clockIn  = $ci ? ($ci instanceof Carbon ? $ci : Carbon::parse($ci))->format('H:i') : '';
@@ -206,7 +198,6 @@ public function create()
         if ($att) {
             foreach ($att->breakTimes as $bt) {
                 if ($bt->start && $bt->end) {
-                    // start/end が文字列でも分数差を計算
                     $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
                 }
             }
@@ -218,8 +209,8 @@ public function create()
         if ($ci && $co) {
             $ciC = $ci instanceof Carbon ? $ci : Carbon::parse($ci);
             $coC = $co instanceof Carbon ? $co : Carbon::parse($co);
-            $total   = $ciC->diffInMinutes($coC);               // 総分
-            $workMin = max(0, $total - (int)($breakMin ?? 0));  // マイナス防止
+            $total   = $ciC->diffInMinutes($coC);
+            $workMin = max(0, $total - (int)($breakMin ?? 0));
         }
 
         $list[] = [
@@ -258,31 +249,37 @@ public function create()
 
     public function show(string $date)
 {
-    $user = auth()->user();
+        $user = auth()->user();
 
-    $attendance = Attendance::with('breakTimes')
-        ->where('user_id', $user->id)
-        ->whereDate('work_date', $date)
-        ->first();
+        $attendance = Attendance::with('breakTimes')
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $date)
+            ->first();
 
     $isPending = StampCorrectionRequest::query()
-        ->where('user_id', $user->id)
-        ->when(
-            $attendance,
-            fn ($q) => $q->where('attendance_id', $attendance->id),
-            fn ($q) => $q->whereDate('requested_clock_in', $date)
-        )
+    ->where('user_id', $user->id)
+    ->where(function ($q) use ($attendance, $date) {
+        if ($attendance) {
+            // 勤怠レコードがある日は attendance_id 一致で限定
+            $q->where('attendance_id', $attendance->id);
+        } else {
+            // 勤怠レコードがない日は日付一致で限定
+            $q->where(function ($qq) use ($date) {
+                $qq->whereDate('requested_clock_in',  $date)
+                    ->orWhereDate('requested_clock_out', $date);
+            });
+        }
+    })
         ->where('status', 'pending')
         ->exists();
 
     $ui = [
-    'role'    => 'staff',                              // スタッフ固定
+    'role'    => 'staff',
     'status'  => $isPending ? 'pending' : 'editable',  // 申請中なら pending
     'canEdit' => !$isPending,                          // 申請中は編集不可
     'footer'  => $isPending ? 'message' : 'request',   // 申請中は注意文、通常は申請
     'form'    => [
-        'action' => route('requests.store', ['date' => $date]),
-        'method' => 'post',
+        'action' => route('requests.store', ['date' => $date]),'method' => 'post',
     ],
 ];
 

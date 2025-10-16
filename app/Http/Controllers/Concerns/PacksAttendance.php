@@ -57,14 +57,14 @@ trait PacksAttendance
             'dateY'   => Carbon::parse($date)->isoFormat('YYYY年'),
             'dateMD'  => Carbon::parse($date)->isoFormat('M月D日'),
 
-            //  明細
+            // 勤怠データ本体
             'clockIn'  => $clockIn,
             'clockOut' => $clockOut,
             'break1In' => $b1in,
             'break1Out'=> $b1out,
             'break2In' => $b2in,
             'break2Out'=> $b2out,
-            'note'     => $attendance?->note ?? null,
+            'reason'     => $attendance->reason,
 
             // 4) 元レコードを必要なら参照できるように（任意）
             'attendance' => $attendance,

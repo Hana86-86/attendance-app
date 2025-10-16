@@ -10,7 +10,7 @@
     | footer  : 'request'|'message'|'admin_update'|'approve'|'approved'
     | form    : ['action' => url, 'method' => 'post'|'put'|'patch'|'delete'] | null
     | detailId: int （管理者の承認POST用 hidden に入れる）
-    | name, dateY, dateMD, clockIn, clockOut, break1In, break1Out, break2In, break2Out, note
+    | name, dateY, dateMD, clockIn, clockOut, break1In, break1Out, break2In, break2Out, reason
    */
 
   $role    = $role    ?? (request()->routeIs('admin.*') ? 'admin' : 'staff');
@@ -21,7 +21,7 @@
 
   // --- フォームの有無と method/action ---
   $wrapInForm = $form && !empty($form['action']);
-  $formAction = $form['action'] ?? '';
+  $formAction = $form['action'] ?? route('requests.store');
   $formMethod = strtolower($form['method'] ?? 'post');
 
   // --- 管理者の承認POSTのときだけ hidden を追加（id/redirect）---
@@ -37,7 +37,7 @@
   $break1Out = old('breaks.0.end',     $break1Out ?? '');
   $break2In  = old('breaks.1.start',   $break2In  ?? '');
   $break2Out = old('breaks.1.end',     $break2Out ?? '');
-  $note      = old('note',             $note      ?? '');
+  $reason      = old('reason',         $reason    ?? '');
 @endphp
 
 @if($wrapInForm)
@@ -48,13 +48,16 @@
       @method($formMethod)
     @endif
 
+    <input type="hidden" name="date" value="{{ $date }}">
+
     @if($needsApproveHidden)
       <input type="hidden" name="id" value="{{ $detailId }}">
       <input type="hidden" name="redirect" value="{{ request()->fullUrl() }}">
+      <input type="hidden" name="reason" value="修正申請">
     @endif
 @endif
 
-<div class="card" style="max-width:720px;">
+<div class="card">
   <table width="100%" cellspacing="0" cellpadding="10" style="border-collapse:separate; border-spacing:0;">
     <colgroup>
       <col style="width:140px;"><col style="width:220px;"><col style="width:40px;"><col style="width:220px;">
@@ -62,13 +65,12 @@
     <thead><tr><th></th><th></th><th></th><th></th></tr></thead>
 
     <tbody>
-      {{-- 名前（Figmaは原則表示のみ。管理者の直接編集を許すなら canEdit && role==="admin"）--}}
       <tr style="border-bottom:1px solid #f7f7f7;">
         <td style="color:#666;">名前</td>
         <td colspan="3">
           @if($canEdit && $role === 'admin')
             <input type="text" value="{{ $name }}"
-                   style="width:100%; height:38px; border:1px solid #ddd; border-radius:6px; padding:0 10px;">
+                      style="width:100%; height:38px; border:1px solid #ddd; border-radius:6px; padding:0 10px;">
           @else
             <div style="height:38px; border:1px solid #ddd; border-radius:6px; padding:0 10px; display:flex; align-items:center;">
               {{ $name ?? '—' }}
@@ -123,24 +125,24 @@
         :mode="$timeMode"
       />
 
-      {{-- 備考：編集可なら textarea、不可なら枠付きテキスト（Figmaどおり） --}}
+      {{-- 備考：編集可なら textarea、不可なら枠付きテキスト --}}
       <tr>
         <td style="color:#666;">備考</td>
         <td colspan="3">
           @if($canEdit)
             <textarea
-              name="note"
+              name="reason"
               rows="3"
               required
               maxlength="500"
               placeholder="備考を入力"
-              style="width:100%; height:90px; border:1px solid #ddd; border-radius:6px; padding:8px 10px;">{{ $note }}</textarea>
-            @error('note')
+              style="width:100%; height:90px; border:1px solid #ddd; border-radius:6px; padding:8px 10px;">{{ $reason }}</textarea>
+            @error('reason')
               <p class="error" style="color:#e06;margin-top:6px;">{{ $message }}</p>
             @enderror
           @else
             <div style="min-height:38px; border:1px solid #ddd; border-radius:6px; padding:8px 10px; display:flex; align-items:center;">
-              {{ $note ?? '—' }}
+              {{ $reason ?? '—' }}
             </div>
           @endif
         </td>
@@ -148,16 +150,19 @@
     </tbody>
   </table>
 
-  {{-- スタッフ承認待ちの赤文（Figmaでは右下に1回だけ出す想定） --}}
-  @if($footer === 'message')
-    <p style="color:#e06;margin:12px 0 0;">※ 承認待ちのため修正はできません。</p>
-  @endif
+  {{-- スタッフ承認待ち画面 --}}
+  {{-- 承認待ち：ボタンを出さず注意文だけ --}}
+@if ($footer === 'message')
+  <div style="margin-top:12px;">
+    <p style="color:#e06; margin:0;">※ 承認待ちのため修正はできません。</p>
+  </div>
 
-  {{-- 右下フッター（ボタン/ラベル） --}}
+@else
+  {{-- 通常のフッター（ボタン類） --}}
   <div style="text-align:right; margin-top:12px;">
     @switch($footer)
       @case('request')       {{-- スタッフ：修正申請 --}}
-      @case('admin_update')  {{-- 管理者：直接修正する様式なら --}}
+      @case('admin_update')  {{-- 管理者：直接修正 --}}
         <x-button type="submit" variant="primary">修正</x-button>
         @break
 
@@ -168,13 +173,9 @@
       @case('approved')      {{-- 管理者：承認済み表示 --}}
         <span class="btn btn-disabled" aria-disabled="true">承認済み</span>
         @break
-
-      @case('message')       {{-- スタッフ：承認待ちで編集不可 --}}
-        <span class="btn btn-disabled" aria-disabled="true">承認待ち</span>
-        @break
     @endswitch
   </div>
-</div>
+@endif
 
 @if($wrapInForm)
   </form>

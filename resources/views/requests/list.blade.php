@@ -16,7 +16,7 @@
         class="{{ $status === 'approved' ? 'is-active' : '' }}">承認済み</a>
   </nav>
 
-  <div class="card --narrow">
+  <div class="card">
     <table class="table">
       <thead>
         <tr>
@@ -33,7 +33,7 @@
           @php
             $statusLabel = $r->status === 'approved' ? '承認済み' : '承認待ち';
             $targetDate  = optional($r->attendance?->work_date)->format('Y/m/d') ?? '—';
-            $reason      = $r->note ?: '—';
+            $reason      = $r->reason ?: '—';
             $requestedAt = optional($r->created_at)->format('Y/m/d H:i') ?: '—';
             $detailDate  = optional($r->attendance?->work_date)->format('Y-m-d');
             // スタッフの詳細は自分の勤怠詳細へ

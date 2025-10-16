@@ -22,7 +22,7 @@
     ]))
 @else
     {{-- 一覧モード --}}
-    <div class="card --narrow">
+    <div class="card">
     <table class="table">
         <thead>
         <tr>
@@ -39,7 +39,7 @@
             @php
                 $statusLabel = $r->status === 'approved' ? '承認済み' : '承認待ち';
                 $targetDate  = optional($r->attendance?->work_date)->format('Y/m/d') ?? '—';
-                $reason      = $r->note ?: '—';
+                $reason      = $r->reason ?: '—';
                 $requestedAt = optional($r->created_at)->format('Y/m/d H:i') ?? '—';
                 $canShow     = $r->attendance && $r->user_id && $r->attendance->work_date;
                 $detailUrl   = $canShow ? route('admin.requests.index', ['status' => $status, 'id' => $r->id]) : null;

@@ -5,19 +5,18 @@
 
 @section('content')
 <div class="card --centered">
-  {{-- ステータス・バッジ（グレー固定） --}}
-  <div class="state-badge">
+    <div class="state-badge">
     <span class="{{ $badge['class'] }}">{{ $badge['text'] }}</span>
-  </div>
+    </div>
 
-  {{-- 日付・時刻表示（Figmaの見た目：年-月日(曜日) と 大きい時刻） --}}
-  <div class="date-meta">
-    <div class="y">{{ $dateY }}</div>        {{-- 例: 2025年 --}}
-    <div class="md">{{ $dateMD }}</div>      {{-- 例: 10月4日 (土) --}}
-  </div>
-  <div class="big-time">{{ now()->format('H:i') }}</div>
 
-  @switch($state)
+<div class="date-meta">
+    <div class="y">{{ $dateY }}</div>
+    <div class="md">{{ $dateMD }}</div>
+    </div>
+<div class="big-time">{{ now()->format('H:i') }}</div>
+
+@switch($state)
     @case('not_working')
         {{-- 出勤前：出勤ボタンのみ --}}
         <div class="actions">

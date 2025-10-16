@@ -9,12 +9,9 @@ use App\Models\User;
 
 class AdminUserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+
     public function run(): void
     {
-        // 管理者ユーザー
         User::updateOrCreate([
             'email' => 'admin@example.com',
         ], [
