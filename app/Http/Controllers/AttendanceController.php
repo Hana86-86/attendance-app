@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\PacksAttendance;
 use App\Http\Requests\Attendance\{ClockInRequest, ClockOutRequest, BreakInRequest, BreakOutRequest};
 use App\Models\Attendance;
 use App\Models\StampCorrectionRequest;
-use App\Http\Controllers\Concerns\PacksAttendance;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
 {

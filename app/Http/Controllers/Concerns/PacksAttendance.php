@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Concerns;
 
-use Carbon\Carbon;
 use App\Models\Attendance;
 use App\Models\User;
+use Carbon\Carbon;
 
 trait PacksAttendance
 {
@@ -23,7 +23,7 @@ trait PacksAttendance
      * @param  Attendance|null $attendance  勤怠（null可）
      * @param  User            $user        対象ユーザー
      * @param  string          $date        'YYYY-MM-DD'
-     * @param  array           $ui          画面状態（role/status/canEdit/footer/form など）
+     * @param  array           $ui          画面状態
      * @return array           Bladeにそのまま渡せる形
      */
     protected function packDetail(?Attendance $attendance, User $user, string $date, array $ui): array
@@ -32,7 +32,6 @@ trait PacksAttendance
         $clockIn  = $attendance?->clock_in  ? Carbon::parse($attendance->clock_in)->format('H:i')  : '';
         $clockOut = $attendance?->clock_out ? Carbon::parse($attendance->clock_out)->format('H:i') : '';
 
-        // 休憩は最大2枠想定で整形（存在しなければ空文字）
         $bts   = $attendance?->breakTimes?->sortBy('start')->values() ?? collect();
         $b1in  = optional($bts->get(0)?->start)->format('H:i') ?? '';
         $b1out = optional($bts->get(0)?->end  )->format('H:i') ?? '';
@@ -52,21 +51,17 @@ trait PacksAttendance
             'footer'  => $footer,
             'form'    => $form,
 
-            // ヘッダー用
             'name'    => $user->name,
             'dateY'   => Carbon::parse($date)->isoFormat('YYYY年'),
             'dateMD'  => Carbon::parse($date)->isoFormat('M月D日'),
 
-            // 勤怠データ本体
             'clockIn'  => $clockIn,
             'clockOut' => $clockOut,
             'break1In' => $b1in,
             'break1Out'=> $b1out,
             'break2In' => $b2in,
             'break2Out'=> $b2out,
-            'reason'     => $attendance->reason,
-
-            // 4) 元レコードを必要なら参照できるように（任意）
+            'reason' => $attendance->reason ?? '',
             'attendance' => $attendance,
             'user_id'    => $user->id,
             'date'       => $date,
