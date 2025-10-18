@@ -2,24 +2,23 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Laravel\Fortify\Fortify;
 use App\Actions\Fortify\CreateNewUser;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\Auth\LoginRequest as UserLoginRequest;
+use App\Http\Responses\LoginResponse;
+use App\Http\Responses\RegisterResponse;
+use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 
-use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
-use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 // 自作レスポンスクラスを use
-use App\Http\Responses\RegisterResponse;
-use App\Http\Responses\LoginResponse;
+use Illuminate\Support\ServiceProvider;
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
+use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -51,7 +50,6 @@ class FortifyServiceProvider extends ServiceProvider
 
         // スタッフ（role=user）ログイン
         Fortify::authenticateUsing(function (Request $request) {
-            // FortifyのRequest → 自作FormRequestへ“中身ごと”コピー
             /** @var \App\Http\Requests\Auth\LoginRequest $form */
             $form = UserLoginRequest::createFrom($request); // 入力値を持ったまま生成
             $form->setContainer(app())->setRedirector(app('redirect'));

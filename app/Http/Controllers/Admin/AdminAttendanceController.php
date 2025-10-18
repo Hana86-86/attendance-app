@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\PacksAttendance;
-use App\Http\Requests\Attendance\UpdateRequest;
 use App\Http\Controllers\Controller;
-use Carbon\Carbon;
-use App\Models\User;
+use App\Http\Requests\Attendance\UpdateRequest;
 use App\Models\Attendance;
-use Illuminate\Support\Collection;
 use App\Models\StampCorrectionRequest;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AdminAttendanceController extends Controller

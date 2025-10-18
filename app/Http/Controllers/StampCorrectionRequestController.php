@@ -2,41 +2,55 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PacksAttendance;
+use App\Http\Requests\StampCorrection\StoreRequest;
+use App\Models\Attendance;
+use App\Models\StampCorrectionRequest;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\StampCorrectionRequest;
-use App\Http\Requests\Attendance\UpdateRequest;
-use App\Models\Attendance;
-use Carbon\Carbon;
-use App\Http\Controllers\Concerns\PacksAttendance;
 
 class StampCorrectionRequestController extends Controller
 {
     use PacksAttendance;
 
     public function index(Request $request)
-    {
-        $status = in_array($request->query('status'), ['pending', 'approved'])
-                ? $request->query('status')
-                : 'pending';
+{
+    $status = in_array($request->query('status'), ['pending', 'approved'])
+            ? $request->query('status') : 'pending';
 
-        $list = StampCorrectionRequest::where('user_id', Auth::id())
-                ->where('status', $status)
-                ->latest('created_at')
-                ->get();
+    // 管理者判定
+    $isAdmin = $request->routeIs('admin.*') || (auth()->user()?->is_admin ?? false);
 
-        $detail     = null;
-        $detailVars = [];
-        if ($id = $request->query('id')) {
-            $detail = StampCorrectionRequest::with(['attendance','user'])->where('user_id', Auth::id())->find($id);
+    // 一覧クエリ：管理者は全件、スタッフは自分のみ
+    $list = StampCorrectionRequest::with(['attendance','user'])
+        ->when(!$isAdmin, fn($q) => $q->where('user_id', Auth::id()))
+        ->where('status', $status)
+        ->latest('created_at')
+        ->get();
 
-            if ($detail) {
-                $baseDate = optional($detail->attendance?->work_date)?->toDateString()
-                            ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
+    $detail     = null;
+    $detailVars = [];
 
-                // スタッフは承認待ちなら編集不可・赤メッセージ、承認済みならボタンは「承認済み」
-                $ui = [
+    if ($id = $request->query('id')) {
+        $detail = StampCorrectionRequest::with(['attendance','user'])
+            ->when(!$isAdmin, fn($q) => $q->where('user_id', Auth::id()))
+            ->find($id);
+
+        if ($detail) {
+            $baseDate = optional($detail->attendance?->work_date)?->toDateString()
+                        ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
+
+            $ui = $isAdmin
+                ? [
+                    'role'    => 'admin',
+                    'status'  => $detail->status,
+                    'canEdit' => $detail->status === 'pending',
+                    'footer'  => $detail->status === 'pending' ? 'approve' : 'approved',
+                    'form'    => null,
+                ]
+                : [
                     'role'    => 'staff',
                     'status'  => $detail->status === 'pending' ? 'pending' : 'approved',
                     'canEdit' => false,
@@ -44,20 +58,22 @@ class StampCorrectionRequestController extends Controller
                     'form'    => null,
                 ];
 
-                $detailVars = $this->packDetail($detail->attendance, $detail->user, $baseDate, $ui);
-            }
+            $detailVars = $this->packDetail($detail->attendance, $detail->user, $baseDate, $ui);
         }
-
-        return view('requests.list', [
-            'status'     => $status,
-            'list'       => $list,
-            'detail'     => $detail,
-            'detailVars' => $detailVars,
-        ]);
     }
 
+    // ビューを役割ごとに切り替え
+    $view = $isAdmin ? 'admin.requests.list' : 'requests.list';
 
-    public function store(UpdateRequest $request)
+    return view($view, [
+        'status'     => $status,
+        'list'       => $list,
+        'detail'     => $detail,
+        'detailVars' => $detailVars,
+    ]);
+}
+
+    public function store(StoreRequest $request)
     {
         $data  = $request->validated();
 

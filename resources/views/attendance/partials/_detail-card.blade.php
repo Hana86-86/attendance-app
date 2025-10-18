@@ -41,15 +41,15 @@
 @endphp
 
 @if($wrapInForm)
-  {{-- 必要な時だけ form を生成（スタッフの修正申請 or 管理者の承認） --}}
   <form method="post" action="{{ $formAction }}" novalidate>
     @csrf
     @if($formMethod !== 'post')
       @method($formMethod)
     @endif
-
+    @if(!empty($attendance))
+      <input type="hidden" name="attendance_id" value="{{ $attendance->id }}">
+    @endif
     <input type="hidden" name="date" value="{{ $date }}">
-
     @if($needsApproveHidden)
       <input type="hidden" name="id" value="{{ $detailId }}">
       <input type="hidden" name="redirect" value="{{ request()->fullUrl() }}">
@@ -150,33 +150,43 @@
     </tbody>
   </table>
 
-  {{-- スタッフ承認待ち画面 --}}
-  {{-- 承認待ち：ボタンを出さず注意文だけ --}}
-@if ($footer === 'message')
-  <div style="margin-top:12px;">
-    <p style="color:#e06; margin:0;">※ 承認待ちのため修正はできません。</p>
+ {{-- 右下フッター（ボタン or メッセージ） --}}
+<div style="text-align:right; margin-top:12px;">
+  @switch($footer)
+    @case('message')  {{-- スタッフ：承認待ちで修正不可（右下に赤文言） --}}
+      <span style="
+        display:inline-block;
+        padding:8px 12px;
+        color:#e06;
+        font-size:14px;
+        line-height:1;
+      ">※ 承認待ちのため修正はできません。</span>
+      @break
+
+    @case('request')       {{-- スタッフ：修正申請 --}}
+    @case('admin_update')  {{-- 管理者：直接修正 --}}
+      <x-button type="submit" variant="primary">修正</x-button>
+      @break
+
+    @case('approve')       {{-- 管理者：申請承認 --}}
+      <x-button type="submit" variant="primary">承認</x-button>
+      @break
+
+    @case('approved')      {{-- 管理者：承認済み（グレー背景＋白文字） --}}
+      <span style="
+        display:inline-block;
+        padding:10px 16px;
+        background:#bdbdbd;
+        color:#fff;
+        border-radius:8px;
+        cursor:default;
+      ">承認済み</span>
+      @break
+   @endswitch
   </div>
+</div>
 
-@else
-  {{-- 通常のフッター（ボタン類） --}}
-  <div style="text-align:right; margin-top:12px;">
-    @switch($footer)
-      @case('request')       {{-- スタッフ：修正申請 --}}
-      @case('admin_update')  {{-- 管理者：直接修正 --}}
-        <x-button type="submit" variant="primary">修正</x-button>
-        @break
-
-      @case('approve')       {{-- 管理者：申請承認 --}}
-        <x-button type="submit" variant="primary">承認</x-button>
-        @break
-
-      @case('approved')      {{-- 管理者：承認済み表示 --}}
-        <span class="btn btn-disabled" aria-disabled="true">承認済み</span>
-        @break
-    @endswitch
-  </div>
-@endif
-
+{{-- フォーム閉じ --}}
 @if($wrapInForm)
   </form>
 @endif

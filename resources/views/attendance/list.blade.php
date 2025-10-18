@@ -39,7 +39,7 @@
         <td class="mono">{{ m2hm($row['break_min'] ?? 0) }}</td>
         <td class="mono">{{ m2hm($row['work_min']  ?? 0) }}</td>
         <td class="mono">
-          {{-- クリック可能は a タグのみ。無効日にしたい時は a ではなく span を出す --}}
+
           <a class="btn-link" href="{{ route('attendance.detail', ['date' => $detailDate]) }}">詳細</a>
         </td>
       </tr>

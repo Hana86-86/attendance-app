@@ -5,6 +5,7 @@
 @section('content')
   <x-page-title>勤怠詳細</x-page-title>
 
+
   @include('attendance.partials._detail-card', array_merge(get_defined_vars(), [
     'role'     => 'staff',
     // スタッフは承認待ちの時は編集不可。それ以外は修正申請フォームを出す

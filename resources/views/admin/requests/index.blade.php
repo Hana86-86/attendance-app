@@ -11,16 +11,7 @@
         class="{{ ($status ?? '') === 'approved' ? 'is-active' : '' }}">承認済み</a>
 </nav>
 
-@if(!empty($detail))
-    {{-- 詳細モード（同ページ表示） --}}
-    @include('attendance.partials._detail-card', array_merge($detailVars, [
-    'role'    => 'admin',
-    'canEdit' => true,
-    'footer'  => (($status ?? '') === 'approved') ? 'approved' : 'approve',
-    'form'    => ['action' => route('admin.requests.approve'), 'method' => 'post'],
-    'detailId'=> $detail->id ?? null,   {{-- 承認POST用 hidden に利用 --}}
-    ]))
-@else
+
     {{-- 一覧モード --}}
     <div class="card">
     <table class="table">
@@ -35,34 +26,34 @@
         </tr>
         </thead>
         <tbody>
-        @forelse($list ?? [] as $r)
-            @php
-                $statusLabel = $r->status === 'approved' ? '承認済み' : '承認待ち';
-                $targetDate  = optional($r->attendance?->work_date)->format('Y/m/d') ?? '—';
-                $reason      = $r->reason ?: '—';
-                $requestedAt = optional($r->created_at)->format('Y/m/d H:i') ?? '—';
-                $canShow     = $r->attendance && $r->user_id && $r->attendance->work_date;
-                $detailUrl   = $canShow ? route('admin.requests.index', ['status' => $status, 'id' => $r->id]) : null;
-            @endphp
-            <tr>
-                <td>{{ $statusLabel }}</td>
-                <td>{{ $r->user->name ?? '—' }}</td>
-                <td class="mono">{{ $targetDate }}</td>
-                <td>{{ $reason }}</td>
-                <td class="mono">{{ $requestedAt }}</td>
-                <td>
-                @if($detailUrl)
-                    <a class="btn btn-link" href="{{ $detailUrl }}">詳細</a>
-                @else
-                    <span class="btn btn-disabled" aria-disabled="true">詳細</span>
-                @endif
-            </td>
-            </tr>
-        @empty
-            <tr><td colspan="6" class="empty">申請はありません</td></tr>
-        @endforelse
-        </tbody>
+@forelse ($list ?? [] as $sr)
+    @php
+    $statusLabel = $sr->status === 'approved' ? '承認済み' : '承認待ち';
+
+    $workDate = optional($sr->attendance?->work_date)?->toDateString()
+            ?? \Carbon\Carbon::parse($sr->requested_clock_in ?? $sr->requested_clock_out ?? now())->toDateString();
+
+    // 勤怠詳細へ遷移
+    $detailUrl = route('admin.attendances.show', [
+        'date' => $workDate,
+        'id'   => $sr->user_id,
+]);
+    $displayDate = \Carbon\Carbon::parse($workDate)->isoFormat('YYYY/MM/DD');
+    $requestedAt = optional($sr->created_at)?->format('Y/m/d H:i');
+@endphp
+
+<tr>
+    <td>{{ $statusLabel }}</td>
+    <td class="nowrap">{{ $sr->user->name ?? '' }}</td>
+    <td class="nowrap">{{ $displayDate }}</td>
+    <td class="nowrap">{{ $sr->reason ?? '' }}</td>
+    <td class="nowrap">{{ $requestedAt }}</td>
+    <td><a class="btn btn-link" href="{{ $detailUrl }}">詳細</a></td>
+</tr>
+@empty
+    <tr><td colspan="6" class="empty">申請はありません。</td></tr>
+@endforelse
+</tbody>
     </table>
     </div>
-    @endif
 @endsection

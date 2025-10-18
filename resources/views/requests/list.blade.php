@@ -4,11 +4,10 @@
   <x-page-title>申請一覧</x-page-title>
 
   @php
-    // URL ?status=… が不正でも安全に
     $status = in_array(request('status'), ['pending','approved']) ? request('status') : 'pending';
   @endphp
 
-  {{-- ページ内タブ（Figmaの「承認待ち / 承認済み」） --}}
+  {{-- ページ内タブ「承認待ち / 承認済み」 --}}
   <nav class="page-tabs">
     <a href="{{ route('requests.list', ['status' => 'pending']) }}"
         class="{{ $status === 'pending' ? 'is-active' : '' }}">承認待ち</a>
@@ -29,34 +28,30 @@
         </tr>
       </thead>
       <tbody>
-        @forelse ($list ?? [] as $r)
-          @php
-            $statusLabel = $r->status === 'approved' ? '承認済み' : '承認待ち';
-            $targetDate  = optional($r->attendance?->work_date)->format('Y/m/d') ?? '—';
-            $reason      = $r->reason ?: '—';
-            $requestedAt = optional($r->created_at)->format('Y/m/d H:i') ?: '—';
-            $detailDate  = optional($r->attendance?->work_date)->format('Y-m-d');
-            // スタッフの詳細は自分の勤怠詳細へ
-            $detailUrl   = $detailDate ? route('attendance.detail', ['date' => $detailDate]) : null;
-          @endphp
-          <tr>
-            <td>{{ $statusLabel }}</td>
-            <td>{{ auth()->user()->name }}</td>
-            <td class="mono">{{ $targetDate }}</td>
-            <td>{{ $reason }}</td>
-            <td class="mono">{{ $requestedAt }}</td>
-            <td>
-              @if($detailUrl)
-                <a class="btn btn-link" href="{{ $detailUrl }}">詳細</a>
-              @else
-                <span class="btn btn-disabled" aria-disabled="true">詳細</span>
-              @endif
-            </td>
-          </tr>
-        @empty
-          <tr><td colspan="6" class="empty">申請はありません</td></tr>
-        @endforelse
-      </tbody>
+@forelse ($list ?? [] as $sr)
+
+@php
+    $statusLabel = $sr->status === 'approved' ? '承認済み' : '承認待ち';
+    $workDate = optional($sr->attendance?->work_date)?->toDateString()
+            ?? \Carbon\Carbon::parse($sr->requested_clock_in ?? $sr->requested_clock_out ?? now())->toDateString();
+    // 詳細ページへ遷移
+    $detailUrl = route('attendance.detail', ['date' => $workDate]);
+@endphp
+
+<tr>
+  <td>{{ $statusLabel }}</td>
+  <td class="nowrap">{{ $sr->user->name ?? '' }}</td>
+  <td class="nowrap">{{ \Carbon\Carbon::parse($workDate)->isoFormat('YYYY/MM/DD') }}</td>
+  <td class="nowrap">{{ $sr->reason ?? '' }}</td>
+  <td class="nowrap">{{ optional($sr->created_at)?->format('Y/m/d H:i') }}</td>
+  <td>
+    <a class="btn btn-link" href="{{ $detailUrl }}">詳細</a>
+  </td>
+</tr>
+@empty
+    <tr><td colspan="6" class="empty">申請はありません。</td></tr>
+@endforelse
+</tbody>
     </table>
   </div>
 @endsection

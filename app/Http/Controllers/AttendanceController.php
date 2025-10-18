@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\PacksAttendance;
-use App\Http\Requests\Attendance\{ClockInRequest, ClockOutRequest, BreakInRequest, BreakOutRequest};
 use App\Models\Attendance;
 use App\Models\StampCorrectionRequest;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
@@ -39,8 +37,8 @@ public function create()
     }
 
     $badgeTextMap = [
-        'not_working' => '未出勤',
-        'working'     => '勤務中',
+        'not_working' => '勤務外',
+        'working'     => '出勤中',
         'on_break'    => '休憩中',
         'closed'      => '退勤済',
     ];
@@ -56,7 +54,7 @@ public function create()
     return view('attendance.create', compact('attendance', 'date', 'dateY', 'dateMD', 'state', 'badge'));
 }
 
-    public function clockIn(ClockInRequest $request)
+    public function clockIn()
 {
     $date = today()->toDateString();
 
@@ -82,7 +80,7 @@ public function create()
     return back();
 }
 
-    public function breakIn(BreakInRequest $request)
+    public function breakIn()
     {
         $date = today()->toDateString();
 
@@ -105,7 +103,7 @@ public function create()
         return back();
     }
 
-    public function breakOut(BreakOutRequest $request)
+    public function breakOut()
     {
         $date = today()->toDateString();
 
@@ -129,7 +127,7 @@ public function create()
             return back();
     }
 
-    public function clockOut(ClockOutRequest $request)
+    public function clockOut()
     {
         $date = today()->toDateString();
 
@@ -247,44 +245,63 @@ public function create()
 
     public function show(string $date)
 {
-        $user = auth()->user();
+    $user = auth()->user();
 
-        $attendance = Attendance::with('breakTimes')
-            ->where('user_id', $user->id)
-            ->whereDate('work_date', $date)
-            ->first();
+    // 当日の勤怠
+    $attendance = Attendance::with('breakTimes')
+        ->where('user_id', $user->is_admin ? request('user_id', $user->id) : $user->id)
+        ->whereDate('work_date', $date)
+        ->first();
 
-    $isPending = StampCorrectionRequest::query()
-    ->where('user_id', $user->id)
-    ->where(function ($q) use ($attendance, $date) {
-        if ($attendance) {
-            // 勤怠レコードがある日は attendance_id 一致で限定
-            $q->where('attendance_id', $attendance->id);
-        } else {
-            // 勤怠レコードがない日は日付一致で限定
-            $q->where(function ($qq) use ($date) {
-                $qq->whereDate('requested_clock_in',  $date)
-                    ->orWhereDate('requested_clock_out', $date);
-            });
-        }
-    })
+    // この日の「未承認の修正申請」を1件取得（existsではなく first で本体を持つ）
+    $pendingReq = \App\Models\StampCorrectionRequest::query()
+        ->when($attendance, fn($q) => $q->where('attendance_id', $attendance->id))
+        ->when(!$attendance, function ($q) use ($date) {
+            $q->whereDate('requested_clock_in',  $date)
+              ->orWhereDate('requested_clock_out', $date);
+        })
         ->where('status', 'pending')
-        ->exists();
+        ->latest('created_at')
+        ->first();
 
-    $ui = [
-    'role'    => 'staff',
-    'status'  => $isPending ? 'pending' : 'editable',  // 申請中なら pending
-    'canEdit' => !$isPending,                          // 申請中は編集不可
-    'footer'  => $isPending ? 'message' : 'request',   // 申請中は注意文、通常は申請
-    'form'    => [
-        'action' => route('requests.store', ['date' => $date]),'method' => 'post',
-    ],
-];
+    $isPending = (bool) $pendingReq;
+    $isAdmin   = request()->routeIs('admin.*') || ($user->is_admin ?? false);
 
-    $viewData = $this->packDetail($attendance, $user, $date, $ui);
-    $viewData['dateY']  = Carbon::parse($date)->isoFormat('YYYY年');
-    $viewData['dateMD'] = Carbon::parse($date)->isoFormat('M月D日');
+    // ▼ ここで UI を決め切る（footer と form が要）
+    if ($isAdmin) {
+        $ui = [
+            'role'    => 'admin',
+            'status'  => $isPending ? 'pending' : 'approved',
+            'canEdit' => false, // 管理者が直接修正する仕様にしたい場合は true に
+            'footer'  => $isPending ? 'approve' : 'approved',
+            'form'    => $isPending ? [
+                'action' => route('admin.requests.approve'),
+                'method' => 'post',
+            ] : null,
+        ];
+    } else {
+        $ui = [
+            'role'    => 'staff',
+            'status'  => $isPending ? 'pending' : 'editable',
+            'canEdit' => !$isPending,                 // 承認待ちは修正不可
+            'footer'  => $isPending ? 'message' : 'request',
+            'form'    => !$isPending ? [              // ← ここ大事：スタッフ申請フォーム
+                'action' => route('requests.store'),
+                'method' => 'post',
+            ] : null,
+        ];
+    }
 
-    return view('attendance.detail', $viewData);
+    // 共通の表示値を構築（既存の Trait）
+    $view = $this->packDetail($attendance, $user, $date, $ui);
+
+    // 承認POST用 hidden
+    $view['detailId'] = $pendingReq?->id;
+
+    // 日付（表示用）
+    $view['dateY']  = \Carbon\Carbon::parse($date)->isoFormat('YYYY年');
+    $view['dateMD'] = \Carbon\Carbon::parse($date)->isoFormat('M月D日');
+
+    return view('attendance.detail', $view);
 }
 }

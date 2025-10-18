@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 trait PacksAttendance
 {
-    /** 分 → "H:MM" 文字列にする小さなヘルパ */
+    /** 分 → "H:MM" 文字列にするヘルパ */
     protected function toHM(?int $minutes): ?string
     {
         if ($minutes === null) return null;
