@@ -27,28 +27,24 @@
     </thead>
 
     <tbody>
-    @forelse ($list as $row)
-      @php
-        $displayDate = \Carbon\Carbon::parse($row['work_date'])->isoFormat('YYYY/MM/DD');
-        $detailDate  = \Carbon\Carbon::parse($row['work_date'])->format('Y-m-d');
-      @endphp
-      <tr>
-        <td>{{ $displayDate }}</td>
-        <td class="mono">{{ $row['clock_in']  ?? '' }}</td>
-        <td class="mono">{{ $row['clock_out'] ?? '' }}</td>
-        <td class="mono">{{ m2hm($row['break_min'] ?? 0) }}</td>
-        <td class="mono">{{ m2hm($row['work_min']  ?? 0) }}</td>
-        <td class="mono">
+@foreach ($list as $row)
+  <tr>
+    <td>{{ $row['work_date'] }}</td>
+    <td class="mono">{{ $row['clock_in']  ?: '—' }}</td>
+    <td class="mono">{{ $row['clock_out'] ?: '—' }}</td>
+    <td class="mono">{{ $row['break_hm']  ?? '—' }}</td>  {{-- 休憩合計 H:MM --}}
+    <td class="mono">{{ $row['work_hm']   ?? '—' }}</td>  {{-- 勤務合計 H:MM --}}
+    <td class="mono">
+      <a class="btn-link" href="{{ $row['detail_url'] }}">詳細</a>
+    </td>
+  </tr>
+@endforeach
 
-          <a class="btn-link" href="{{ route('attendance.detail', ['date' => $detailDate]) }}">詳細</a>
-        </td>
-      </tr>
-    @empty
-      <tr>
-        <td colspan="6" style="text-align:center; color:#666;">勤怠データがありません。</td>
-      </tr>
-    @endforelse
-    </tbody>
+@empty($list)
+  <tr><td colspan="6" class="empty">表示できるデータがありません。</td></tr>
+@endempty
+</tbody>
+
   </table>
 </div>
 @endsection

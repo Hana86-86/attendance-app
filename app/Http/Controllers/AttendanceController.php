@@ -26,13 +26,13 @@ public function create()
 
     if ($attendance) {
         if (!is_null($attendance->clock_out) || $attendance->status === 'closed') {
-            $state = 'closed';                // 退勤後 → メッセージのみ
+            $state = 'closed';               // 退勤済み → 何もボタンなし
         } elseif (is_null($attendance->clock_in)) {
-            $state = 'not_working';           // 出勤打刻なし → 出勤ボタンのみ
+            $state = 'not_working';           // 出勤前 → 出勤ボタンのみ
         } elseif ($attendance->breakTimes()->whereNull('end')->exists()) {
-            $state = 'on_break';              // 休憩中 → 休憩戻ボタンのみ
+            $state = 'on_break';              // 休憩中 → 休憩終了＋退勤ボタン
         } else {
-            $state = 'working';               // 出勤済み・休憩開いてない → 退勤＋休憩入
+            $state = 'working';               // 出勤中 → 休憩開始＋退勤ボタン
         }
     }
 
@@ -156,72 +156,62 @@ public function create()
 
     public function indexMonth(string $month)
 {
-    $base  = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
+    // ① 月初・月末の日付文字列を取得
+    $base      = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
+    $startDate = $base->copy()->startOfMonth()->toDateString(); // "YYYY-MM-01"
+    $endDate   = $base->copy()->endOfMonth()->toDateString();   // "YYYY-MM-31"
 
-    $start = $base->copy()->startOfMonth()->toDateString();
-    $end   = $base->copy()->endOfMonth()->toDateString();
-
+    // ② タイトル・前月・次月
     $titleYM   = $base->isoFormat('YYYY/MM');
     $prevMonth = $base->copy()->subMonth()->format('Y-m');
     $nextMonth = $base->copy()->addMonth()->format('Y-m');
 
+    // ③ 当該月の勤怠データをまとめて取得
     $rows = Attendance::with('breakTimes')
-        ->where('user_id', Auth::id())
-        ->whereBetween('work_date', [$start, $end])
+        ->where('user_id', auth()->id())
+        ->whereBetween('work_date', [$startDate, $endDate])
         ->orderBy('work_date')
         ->get();
 
-    $byDate = $rows->keyBy(function ($r) {
-        $wd = $r->work_date;
-        return $wd instanceof Carbon
-            ? $wd->toDateString()
-            : Carbon::parse($wd)->toDateString();
-    });
+    $byDate = $rows->keyBy(fn (Attendance $a) => $a->work_date->toDateString());
 
+    // ④ 日付ループで表示用データを組み立て
     $list = [];
-    for ($d = Carbon::parse($start); $d->lte(Carbon::parse($end)); $d->addDay()) {
+    for ($d = Carbon::parse($startDate); $d->lte(Carbon::parse($endDate)); $d->addDay()) {
         $date = $d->toDateString();
+        /** @var Attendance|null $att */
         $att  = $byDate->get($date);
 
-        $ci = $att?->clock_in;
-        $co = $att?->clock_out;
+        // 出退勤（cast により Carbon|null なので ?->format だけでOK）
+        $clockIn  = $att?->clock_in?->format('H:i')  ?? '';
+        $clockOut = $att?->clock_out?->format('H:i') ?? '';
 
-        $clockIn  = $ci ? ($ci instanceof Carbon ? $ci : Carbon::parse($ci))->format('H:i') : '';
-        $clockOut = $co ? ($co instanceof Carbon ? $co : Carbon::parse($co))->format('H:i') : '';
-
-        // 休憩合計（分）
-        $breakMin = 0;
-        if ($att) {
-            foreach ($att->breakTimes as $bt) {
-                if ($bt->start && $bt->end) {
-                    $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
-                }
-            }
-        }
-        $breakMin = $breakMin > 0 ? $breakMin : null;
-
-        // 勤務合計（分）
-        $workMin = null;
-        if ($ci && $co) {
-            $ciC = $ci instanceof Carbon ? $ci : Carbon::parse($ci);
-            $coC = $co instanceof Carbon ? $co : Carbon::parse($co);
-            $total   = $ciC->diffInMinutes($coC);
-            $workMin = max(0, $total - (int)($breakMin ?? 0));
-        }
+        // アクセサ（getBreakMinutesAttribute / getWorkMinutesAttribute）
+        $breakMin = $att?->break_minutes; // int|null
+        $workMin  = $att?->work_minutes;  // int|null
 
         $list[] = [
-            'clock_in'   => $clockIn,                 // 例: "08:00" or ""
-            'clock_out'  => $clockOut,                // 例: "17:30" or ""
-            'break_min'  => $breakMin,                // 例: 60 or null
-            'break_hm'   => $this->toHM($breakMin),   // 例: "1:00"
-            'work_min'   => $workMin,                 // 例: 450
-            'work_hm'    => $this->toHM($workMin),    // 例: "7:30"
-            'work_date'  => $date,                    // 例: "2025-10-04"
-            'detail_url' => route('attendance.detail', ['date' => $date]),
+            'work_date' => $date,
+            'clock_in'  => $clockIn,
+            'clock_out' => $clockOut,
+            'break_min' => $breakMin,
+            'break_hm'  => $this->toHM($breakMin), // 表示用 "H:MM" or "—"
+            'work_min'  => $workMin,
+            'work_hm'   => $this->toHM($workMin),  // 表示用
+            'detail_url'=> route('attendance.detail', ['date' => $date]),
         ];
     }
 
-    return view('attendance.list', compact('titleYM','prevMonth','nextMonth','list'));
+    return view('attendance.list', compact('titleYM', 'prevMonth', 'nextMonth', 'list'));
+}
+
+/** 表示用：分 → "H:MM"（null は '—'） */
+private function toHM(?int $minutes): string
+{
+    if ($minutes === null) return '—';
+    $h = intdiv($minutes, 60);
+    $m = $minutes % 60;
+    return sprintf('%d:%02d', $h, $m);
 }
     public function today()
     {
@@ -245,60 +235,69 @@ public function create()
 
     public function show(string $date)
 {
-    $user = auth()->user();
+    $user     = auth()->user();
+    $isAdmin  = request()->routeIs('admin.*') || ($user->is_admin ?? false);
 
-    // 当日の勤怠
+    // 表示対象ユーザーID（スタッフ=本人、管理者=クエリ指定があればそれ）
+    $targetUserId = $isAdmin ? (int)request('user_id', $user->id) : $user->id;
+
+    // 当日の勤怠データ
     $attendance = Attendance::with('breakTimes')
-        ->where('user_id', $user->is_admin ? request('user_id', $user->id) : $user->id)
+        ->where('user_id', $targetUserId)
         ->whereDate('work_date', $date)
         ->first();
 
-    // この日の「未承認の修正申請」を1件取得（existsではなく first で本体を持つ）
+    /**
+     * 承認待ち申請がそのユーザー・その日のものに限って存在するか？
+     * - 当日の勤怠があれば attendance_id で絞る
+     * - まだ勤怠が無いケースは“申請日＝当日”で clock_in / clock_out / 休憩のいずれかに該当するもの
+     */
     $pendingReq = \App\Models\StampCorrectionRequest::query()
-        ->when($attendance, fn($q) => $q->where('attendance_id', $attendance->id))
-        ->when(!$attendance, function ($q) use ($date) {
-            $q->whereDate('requested_clock_in',  $date)
-              ->orWhereDate('requested_clock_out', $date);
-        })
+        ->where('user_id', $targetUserId)
         ->where('status', 'pending')
+        ->when($attendance, function ($q) use ($attendance) {
+            // 勤怠があるなら attendance_id で一意に
+            $q->where('attendance_id', $attendance->id);
+        }, function ($q) use ($date) {
+            // 勤怠が未作成でも、当日分の申請は pending 扱いにする
+            $q->where(function ($qq) use ($date) {
+                $qq->whereDate('requested_clock_in',  $date)
+                    ->orWhereDate('requested_clock_out', $date)
+                    ->orWhereDate('requested_break_start', $date)
+                    ->orWhereDate('requested_break_end',   $date);
+            });
+        })
         ->latest('created_at')
         ->first();
 
     $isPending = (bool) $pendingReq;
-    $isAdmin   = request()->routeIs('admin.*') || ($user->is_admin ?? false);
+    // 編集可否フラグ
+    // - スタッフ：pending 中は編集不可
+    // - 管理者：pending でも直接修正可能
+    $canEdit = $isAdmin ? true : !$isPending;
 
-    // ▼ ここで UI を決め切る（footer と form が要）
-    if ($isAdmin) {
-        $ui = [
-            'role'    => 'admin',
-            'status'  => $isPending ? 'pending' : 'approved',
-            'canEdit' => false, // 管理者が直接修正する仕様にしたい場合は true に
-            'footer'  => $isPending ? 'approve' : 'approved',
-            'form'    => $isPending ? [
-                'action' => route('admin.requests.approve'),
-                'method' => 'post',
-            ] : null,
-        ];
-    } else {
-        $ui = [
-            'role'    => 'staff',
-            'status'  => $isPending ? 'pending' : 'editable',
-            'canEdit' => !$isPending,                 // 承認待ちは修正不可
-            'footer'  => $isPending ? 'message' : 'request',
-            'form'    => !$isPending ? [              // ← ここ大事：スタッフ申請フォーム
-                'action' => route('requests.store'),
-                'method' => 'post',
-            ] : null,
-        ];
-    }
+    // 右下フッターのボタン（カード共通パーシャル用）
+    $footer = match (true) {
+        $isAdmin && $isPending  => 'approve',      // 管理者：承認ボタン
+        $isAdmin                => 'admin_update', // 管理者：直接修正
+        !$isAdmin && $isPending => 'message',      // スタッフ：承認待ちで編集不可（赤文言）
+        default                 => 'request',      // スタッフ：修正申請ボタン
+    };
 
-    // 共通の表示値を構築（既存の Trait）
-    $view = $this->packDetail($attendance, $user, $date, $ui);
+    $view = $this->packDetail($attendance, $user, $date, [
+        'role'    => $isAdmin ? 'admin' : 'staff',
+        'status'  => $isPending ? 'pending' : 'editable',
+        'canEdit' => $canEdit,
+        'footer'  => $footer,
+        'form'    => match ($footer) {
+            'approve'      => ['action' => route('admin.requests.approve'), 'method' => 'post'],
+            'admin_update' => ['action' => route('admin.attendances.update', ['date' => $date, 'id' => $targetUserId]), 'method' => 'post'],
+            'request'      => ['action' => route('requests.store'), 'method' => 'post'],
+            default        => null,
+        },
+    ]);
 
-    // 承認POST用 hidden
-    $view['detailId'] = $pendingReq?->id;
-
-    // 日付（表示用）
+    $view['title']  = \Carbon\Carbon::parse($date)->isoFormat('YYYY/MM/DD (dd)');
     $view['dateY']  = \Carbon\Carbon::parse($date)->isoFormat('YYYY年');
     $view['dateMD'] = \Carbon\Carbon::parse($date)->isoFormat('M月D日');
 

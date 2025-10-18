@@ -57,8 +57,8 @@
             <td class="text-left mono">{{ $dLabel }}</td>
             <td class="mono">{{ $row['clock_in']  ?? '' }}</td>
             <td class="mono">{{ $row['clock_out'] ?? '' }}</td>
-            <td class="mono">{{ m2hm($row['break_min'] ?? null) }}</td>
-            <td class="mono">{{ m2hm($row['work_min']  ?? null) }}</td>
+            <td class="mono">{{ $row['break_hm'] ?? '—' }}</td>
+            <td class="mono">{{ $row['work_hm']  ?? '—' }}</td>
             <td>
                 <a class="btn" href="{{ $detailUrl }}">詳細</a>
             </td>

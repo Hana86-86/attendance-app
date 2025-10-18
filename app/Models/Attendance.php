@@ -45,4 +45,35 @@ class Attendance extends Model
         $date = Carbon::now($tz)->startOfDay()->toDateString(); // 'YYYY-MM-DD'
         return $q->whereDate('work_date', $date);
     }
+
+    // 休憩合計（分）
+    public function getBreakMinutesAttribute(): int
+    {
+        return $this->breakTimes->reduce(function ($sum, $bt) {
+            if (!$bt->start || !$bt->end) return $sum;
+            $s = Carbon::parse($bt->start);
+            $e = Carbon::parse($bt->end);
+            return $sum + $s->diffInMinutes($e, false);
+        }, 0);
+    }
+
+    // 勤務合計（分）= 退勤-出勤 - 休憩
+    public function getWorkMinutesAttribute(): ?int
+    {
+        if (!$this->clock_in || !$this->clock_out) return null;
+        $in  = Carbon::parse($this->clock_in);
+        $out = Carbon::parse($this->clock_out);
+        return max(0, $in->diffInMinutes($out, false) - $this->break_minutes);
+    }
+
+    // 表示用 "H:MM"
+    protected static function toHm(?int $min): string
+    {
+        if ($min === null) return '—';
+        $h = intdiv($min, 60);
+        $m = $min % 60;
+        return sprintf('%d:%02d', $h, $m);
+    }
+    public function getBreakHmAttribute(): string { return self::toHm($this->break_minutes); }
+    public function getWorkHmAttribute(): string  { return self::toHm($this->work_minutes); }
 }

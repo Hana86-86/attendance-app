@@ -9,10 +9,10 @@ if (!function_exists('m2hm')) {
      * @return string
      */
     function m2hm($m): string {
-        if (empty($m) && $m !== 0) return ''; // nullや空文字なら空を返す
-        $m = (int)$m; //強制的に数値にキャストする
-        $h = intdiv($m, 60); // 60で割って「時間」を計算
-        $i = $m % 60;        // 余りを「分」として計算
-        return sprintf('%d:%02d', $h, $i); // 例: "2:05"
+        if (empty($m) && $m !== 0) return '';
+        $m = (int)$m;
+        $h = intdiv($m, 60);
+        $i = $m % 60;
+        return sprintf('%d:%02d', $h, $i); 
     }
 }

@@ -1,32 +1,43 @@
 @extends('layouts.guest')
 
-@section('title', 'メール認証のお願い')
+@section('title', 'メール認証')
 
 @section('content')
-<div class="card">
-    <h1 style="font-size:20px;margin:0 0 12px;">メール認証</h1>
+<div style="max-width:760px; margin:80px auto; text-align:center;">
 
-    @if (session('status') === 'verification-link-sent')
-        <div class="flash">認証メールを再送しました。受信トレイをご確認ください。</div>
-    @endif
-
-    <p class="muted" style="margin:0 0 16px;">
+    {{-- 説明文 --}}
+    <p class="muted" style="margin:0 0 28px; line-height:1.8;">
         登録していただいたメールアドレスに認証メールを送付しました。<br>
         メール認証を完了してください。
     </p>
 
-    {{-- ボタン版（同じアクション） --}}
-    <form method="POST" action="{{ route('verification.send') }}" style="margin:12px 0">
+    {{-- 成功トースト（再送直後の通知） --}}
+    @if (session('status') === 'verification-link-sent')
+    <div class="alert" style="margin:0 auto 20px; color:#0a7; font-size:14px;">
+        認証メールを再送しました。受信トレイをご確認ください。
+    </div>
+    @endif
+
+    {{-- 大きいボタン（Figmaの「認証はこちらから」） --}}
+    <form method="POST" action="{{ route('verification.send') }}">
     @csrf
-    <button type="submit" class="btn" style="width:100%;text-align:center">
+    <button type="submit"
+            class="btn"
+            style="width:320px; height:44px; font-weight:700;">
         認証はこちらから
     </button>
     </form>
 
-    {{-- テキストリンク版（同じアクション） --}}
-    <form method="POST" action="{{ route('verification.send') }}" style="text-align:center;margin-top:8px">
-        @csrf
-        <button type="submit" class="btn-link">認証メールを再送する</button>
+    {{-- 再送 --}}
+    <form method="POST" action="{{ route('verification.send') }}"
+            style="margin-top:18px;">
+    @csrf
+    <button type="submit"
+            class="btn btn-link"
+            style="font-size:14px;">
+        認証メールを再送する
+    </button>
     </form>
+
 </div>
 @endsection

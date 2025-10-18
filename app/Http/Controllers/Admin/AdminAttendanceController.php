@@ -17,65 +17,23 @@ class AdminAttendanceController extends Controller
 
     public function index(string $date)
     {
-        $users = User::where('role', 'user')->orderBy('id')->get(['id','name']);
+        $date = Carbon::parse($date)->toDateString();
 
-    $atts = Attendance::with('breakTimes')
-        ->whereDate('work_date', $date)
-        ->get()
-        ->keyBy('user_id');
+        // ★当日の勤怠を user と breakTimes 付きで取得（計算はモデルのアクセサが担当）
+        $list = Attendance::with(['breakTimes', 'user'])
+            ->whereDate('work_date', $date)
+            ->orderBy('user_id')
+            ->get();
 
-    $list = [];
-    foreach ($users as $u) {
-        $att = $atts->get($u->id);
-
-        $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
-        $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
-
-        // 休憩合計（分）
-        $breakMin = 0;
-        foreach ($att?->breakTimes ?? [] as $bt) {
-            if ($bt->start && $bt->end) {
-                $breakMin += Carbon::parse($bt->start)->diffInMinutes(Carbon::parse($bt->end));
-            }
-        }
-        $breakMin = $breakMin ?: null;
-
-        // 勤務合計（分）
-        $workMin = null;
-        if ($att?->clock_in && $att?->clock_out) {
-            $total   = Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out));
-            $workMin = max(0, $total - (int)($breakMin ?? 0));
-        }
-        $breakHM = $this->toHM($breakMin);
-        $workHM  = $this->toHM($workMin);
-
-        $dateYmd = Carbon::parse($date)->format('Y-m-d');
-
-        $list[] = [
-            'user_id'    => $u->id,
-            'name'       => $u->name,
-            'clock_in'   => $clockIn,
-            'clock_out'  => $clockOut,
-            'break_min'  => $breakMin,
-            'break_hm'   => $breakHM,
-            'work_hm'    => $workHM,
-            'work_min'   => $workMin,
-            'work_date'  => $dateYmd,
-            'detail_url' => route('admin.attendances.show', [
-                'date' => $dateYmd,
-                'id'   => $u->id,
-            ]),
-        ];
+        return view('admin.attendance.index', [
+            'title' => Carbon::parse($date)->isoFormat('YYYY/MM/DD (ddd)'),
+            'date'  => $date,
+            'prev'  => Carbon::parse($date)->subDay()->toDateString(),
+            'next'  => Carbon::parse($date)->addDay()->toDateString(),
+            'list'  => $list,
+        ]);
     }
 
-    return view('admin.attendance.index', [
-        'title'    => Carbon::parse($date)->isoFormat('YYYY/MM/DD (dd)'),
-        'date'     => $date,
-        'prevDate' => Carbon::parse($date)->subDay()->toDateString(),
-        'nextDate' => Carbon::parse($date)->addDay()->toDateString(),
-        'list'     => $list,
-    ]);
-}
 
     public function show(string $date, int $id)
 {
