@@ -21,7 +21,8 @@ class StampCorrectionRequestController extends Controller
             ? $request->query('status') : 'pending';
 
     // 管理者判定
-    $isAdmin = $request->routeIs('admin.*') || (auth()->user()?->is_admin ?? false);
+    $user = auth()->user();
+    $isAdmin = $request->routeIs('admin.*') || ($user->is_admin ?? false);
 
     // 一覧クエリ：管理者は全件、スタッフは自分のみ
     $list = StampCorrectionRequest::with(['attendance','user'])
@@ -57,12 +58,16 @@ class StampCorrectionRequestController extends Controller
                     'footer'  => $detail->status === 'pending' ? 'message' : 'approved',
                     'form'    => null,
                 ];
-
-            $detailVars = $this->packDetail($detail->attendance, $detail->user, $baseDate, $ui);
+            $attForView = $this->overlayAttendanceWithRequest(
+            $detail->attendance,
+            $detail->status === 'pending' ? $detail : null,
+            $detail->user_id,
+            $baseDate
+        );
+            $detailVars = $this->packDetail($attForView, $detail->user, $baseDate, $ui);
         }
     }
 
-    // ビューを役割ごとに切り替え
     $view = $isAdmin ? 'admin.requests.list' : 'requests.list';
 
     return view($view, [
@@ -84,14 +89,20 @@ class StampCorrectionRequestController extends Controller
         $breaks = $data['breaks'] ?? [];
 
         $dt = function (?string $t) use ($workDate) {
-            return $t ? Carbon::createFromFormat('Y-m-d H:i', "{$workDate} {$t}") : null;
-        };
+        return $t ? Carbon::createFromFormat('Y-m-d H:i', "{$workDate} {$t}") : null;
+    };
+
+        $clockIn  = $data['clock_in'] ?? null;
+        $clockOut = $data['clock_out'] ?? null;
+    if (!$clockIn && !$clockOut) {
+    $clockIn = Carbon::createFromFormat('Y-m-d H:i', "{$workDate} 00:00");
+    }
 
         $attendance = Attendance::where('user_id', Auth::id())
             ->whereDate('work_date', $workDate)
             ->first();
 
-        return DB::transaction(function () use ($workDate, $data, $breaks, $attendance, $dt) {
+        return DB::transaction(function () use ($workDate, $data, $breaks, $attendance, $dt, $clockIn, $clockOut) {
 
             $exists = StampCorrectionRequest::where('user_id', Auth::id())
                 ->when(
@@ -107,29 +118,30 @@ class StampCorrectionRequestController extends Controller
                     ->withErrors(['status' => '同日の申請が未承認のまま既に存在します。'])
                     ->withInput();
             }
-
-            $requested_break = [];
-            foreach ([0, 1] as $i) {
-                $st = $breaks[$i]['start'] ?? null;
-                $ed = $breaks[$i]['end']   ?? null;
-                if ($st || $ed) {
-                    $requested_break[] = [
-                        'start' => $dt($st),
-                        'end'   => $dt($ed),
-                    ];
-                }
-            }
+        $dt = function (?string $t) use ($workDate) {
+            return $t ? Carbon::createFromFormat('Y-m-d H:i', "{$workDate} {$t}")->format('Y-m-d H:i:s') : null;
+        };
+        $requested_break = [];
+        foreach ([0, 1] as $i) {
+            $st = $breaks[$i]['start'] ?? null;
+            $ed = $breaks[$i]['end']   ?? null;
+        if ($st || $ed) {
+        $requested_break[] = [
+            'start' => $dt($st),
+            'end'   => $dt($ed),
+        ];
+    }
+}
 
             StampCorrectionRequest::create([
-                'user_id'             => Auth::id(),
-                'attendance_id'       => optional($attendance)->id,
-                'requested_clock_in'  => $dt($data['clock_in']  ?? null),
-                'requested_clock_out' => $dt($data['clock_out'] ?? null),
-                'requested_break'     => $requested_break,
-                'reason'              => $data['reason'] ?? '修正申請',
-                'status'              => 'pending',
-            ]);
-
+            'user_id'             => Auth::id(),
+            'attendance_id'       => optional($attendance)->id,
+            'requested_clock_in'  => $clockIn ? Carbon::parse($clockIn) : null,
+            'requested_clock_out' => $clockOut ? Carbon::parse($clockOut) : null,
+            'requested_break'     => $requested_break,
+            'reason'              => $data['reason'] ?? '修正申請',
+            'status'              => 'pending',
+        ]);
             return back()->with('success', '修正申請を送信しました。');
         });
     }

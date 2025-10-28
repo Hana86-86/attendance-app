@@ -26,56 +26,64 @@ class AdminUserController extends Controller
     }
 
     public function attendances(int $id, string $month)
-    {
-        $user  = User::findOrFail($id);
+{
+    $user  = User::findOrFail($id);
 
-        $base  = Carbon::parse($month.'-01');
-        $from  = $base->copy()->startOfMonth();
-        $to    = $base->copy()->endOfMonth();
+    $base  = Carbon::parse($month.'-01');
+    $from  = $base->copy()->startOfMonth();
+    $to    = $base->copy()->endOfMonth();
 
-        $atts = Attendance::with('breakTimes')
-            ->where('user_id', $id)
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
-            ->get()
-            ->keyBy(fn ($a) => \Carbon\Carbon::parse($a->work_date)->toDateString());
+    $rows = Attendance::with('breakTimes')
+        ->where('user_id', $id)
+        ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+        ->orderBy('work_date')
+        ->get()
+        ->keyBy(fn ($a) =>
+            $a->work_date instanceof Carbon
+                ? $a->work_date->toDateString()
+                : Carbon::parse($a->work_date)->toDateString()
+        );
 
-        $list = [];
-        for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
-            $date = $d->toDateString();
-            $att  = $atts->get($date);
+    $list = [];
+    for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
+        $date = $d->toDateString();
+        /** @var \App\Models\Attendance|null $att */
+        $att  = $rows->get($date);
 
-            $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
-            $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
-            $breakMin = 0;
-            $workMin  = ($att?->clock_in && $att?->clock_out)
-                        ? Carbon::parse($att->clock_in)->diffInMinutes(Carbon::parse($att->clock_out)) - $breakMin
-                        : null;
+        // 出退勤（文字列）
+        $clockIn  = $att?->clock_in  ? Carbon::parse($att->clock_in)->format('H:i') : '';
+        $clockOut = $att?->clock_out ? Carbon::parse($att->clock_out)->format('H:i') : '';
 
-            $list[] = [
-                'user_id'   => $user->id,
-                'name'      => $user->name,
-                'clock_in'  => $clockIn,
-                'clock_out' => $clockOut,
-                'break_min' => $breakMin ?: null,
-                'break_hm'  => $this->toHM(is_null($breakMin) ? null : (int)$breakMin),
-                'work_min'  => $workMin,
-                'work_hm'   => $this->toHM(is_null($workMin)  ? null : (int)$workMin),
-                'work_date' => $date,
-                'detail_url' => route('admin.attendances.show', [
+        $breakMin = $att?->break_minutes;
+        $workMin  = $att?->work_minutes;
+
+        $list[] = [
+            'user_id'   => $user->id,
+            'name'      => $user->name,
+            'clock_in'  => $clockIn,
+            'clock_out' => $clockOut,
+
+            'break_min' => $breakMin,
+            'break_hm'  => $att?->break_hm ?? '—',
+            'work_min'  => $workMin,
+            'work_hm'   => $att?->work_hm  ?? '—',
+
+            'work_date'  => $date,
+            'detail_url' => route('admin.attendances.show', [
                 'date' => $date,
                 'id'   => $user->id,
             ]),
         ];
-        }
-
-        return view('admin.users.attendances', [
-                'user'      => $user,
-                'month'     => $base->format('Y-m'),
-                'prevMonth' => $base->copy()->subMonth()->format('Y-m'),
-                'nextMonth' => $base->copy()->addMonth()->format('Y-m'),
-                'list'      => $list,
-        ]);
     }
+
+    return view('admin.users.attendances', [
+        'user'      => $user,
+        'month'     => $base->format('Y-m'),
+        'prevMonth' => $base->copy()->subMonth()->format('Y-m'),
+        'nextMonth' => $base->copy()->addMonth()->format('Y-m'),
+        'list'      => $list,
+    ]);
+}
     public function exportMonth(int $id, string $month)
     {
         // 認可
@@ -105,10 +113,8 @@ class AdminUserController extends Controller
             $out = fopen('php://output', 'w');
             // UTF-8 BOM
             fwrite($out, "\xEF\xBB\xBF");
-
-            // 見出し行（Figma 構成に寄せています）
+            // ヘッダー行
             fputcsv($out, ['日付','出勤','退勤','休憩','合計','備考']);
-
             // ユーティリティ
             $hm = function (?int $minutes) {
                 if ($minutes === null) return '0:00';

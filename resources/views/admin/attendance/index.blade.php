@@ -3,8 +3,7 @@
 @section('content')
 
 @php
-  // 詳細モードの判定（Controller@show から $role='admin' が来ている時）
-  $isDetail = isset($role) && $role === 'admin';
+  $isDetail = (bool)($isDetail ?? false);
 @endphp
 
 {{-- ===== ページタイトル・上部UI ===== --}}
@@ -41,7 +40,7 @@
   @include('attendance.partials._detail-card', get_defined_vars())
 
 @else
-  {{-- ▼ 一覧テーブル（従来どおり） --}}
+  {{--  一覧テーブル --}}
   <div class="card">
     <table class="table att-table">
       <thead>
@@ -63,8 +62,8 @@
     <td class="text-left">{{ optional($att->user)->name ?? '' }}</td>
     <td class="mono">{{ $att->clock_in?->format('H:i')  ?? '—' }}</td>
     <td class="mono">{{ $att->clock_out?->format('H:i') ?? '—' }}</td>
-    <td class="mono">{{ $att->break_hm }}</td>  {{-- ★モデルの表示用アクセサ --}}
-    <td class="mono">{{ $att->work_hm  }}</td>  {{-- ★モデルの表示用アクセサ --}}
+    <td class="mono">{{ $att->break_hm }}</td>  {{-- モデルの表示用アクセサ --}}
+    <td class="mono">{{ $att->work_hm  }}</td>  {{-- モデルの表示用アクセサ --}}
     <td class="text-right">
       <a class="btn btn-link" href="{{ $detailUrl }}">詳細</a>
     </td>

@@ -5,20 +5,24 @@ namespace App\Models;
 use App\Models\Attendance;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StampCorrectionRequest extends Model
 {
     protected $fillable = [
-        'user_id',
-        'attendance_id',
-        'requested_clock_in',
-        'requested_clock_out',
-        'requested_break_start',
-        'requested_break_end',
-        'reason',
-        'status',        // 'pending' | 'approved' | 'rejected'
-    ];
+    'user_id',
+    'attendance_id',
+    'requested_clock_in',
+    'requested_clock_out',
+    'requested_break', // JSON で受け取る
+    'reason',
+    'status',
+];
+
+protected $casts = [
+    'requested_clock_in'  => 'datetime',
+    'requested_clock_out' => 'datetime',
+    'requested_break'     => 'array',
+];
 
     public function attendance()
     {

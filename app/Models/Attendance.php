@@ -45,25 +45,28 @@ class Attendance extends Model
         $date = Carbon::now($tz)->startOfDay()->toDateString(); // 'YYYY-MM-DD'
         return $q->whereDate('work_date', $date);
     }
+    protected function diffMinutesCeil($start, $end): int
+    {
+        return (int) ceil(
+            Carbon::parse($start)->diffInSeconds(Carbon::parse($end)) / 60
+        );
+    }
 
-    // 休憩合計（分）
+    // 休憩合計（分）切り上げで計算
     public function getBreakMinutesAttribute(): int
     {
         return $this->breakTimes->reduce(function ($sum, $bt) {
             if (!$bt->start || !$bt->end) return $sum;
-            $s = Carbon::parse($bt->start);
-            $e = Carbon::parse($bt->end);
-            return $sum + $s->diffInMinutes($e, false);
+            return $sum + $this->diffMinutesCeil($bt->start, $bt->end);
         }, 0);
     }
-
     // 勤務合計（分）= 退勤-出勤 - 休憩
     public function getWorkMinutesAttribute(): ?int
     {
         if (!$this->clock_in || !$this->clock_out) return null;
-        $in  = Carbon::parse($this->clock_in);
-        $out = Carbon::parse($this->clock_out);
-        return max(0, $in->diffInMinutes($out, false) - $this->break_minutes);
+
+        $total = $this->diffMinutesCeil($this->clock_in, $this->clock_out);
+        return max(0, $total - $this->break_minutes);
     }
 
     // 表示用 "H:MM"
