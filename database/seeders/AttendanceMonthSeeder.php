@@ -37,13 +37,13 @@ class AttendanceMonthSeeder extends Seeder
                         continue;
                     }
 
-                    // 出勤 9:00 ± 0〜40分
+                    // 出勤 9:00〜9:40 の範囲で決定
                     $clockIn = $d->copy()->setTime(9, 0)->addMinutes(mt_rand(0, 40));
 
                     // 退勤 17:40〜18:10 の範囲で決定
                     $clockOut = $d->copy()->setTime(18, 0)->addMinutes(mt_rand(-20, 10));
 
-                    // 出勤より退勤が早くなるのを防止
+                    // 退勤が出勤より前にならないように調整
                     if ($clockOut->lte($clockIn)) {
                     $clockOut = $clockIn->copy()->addHours(8);
                     }
@@ -51,7 +51,7 @@ class AttendanceMonthSeeder extends Seeder
                     // 総休憩 60〜90分
                     $totalBreak = mt_rand(60, 90);
 
-                    // 1回 or 2回のどちらか（60%で2回）
+                    // 休憩パターンを決定
                     $breaks = [];
                     if (mt_rand(1, 100) <= 60) {
                         $firstLen  = mt_rand(30, min(60, $totalBreak - 30));

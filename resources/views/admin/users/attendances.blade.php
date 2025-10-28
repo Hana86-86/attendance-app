@@ -45,9 +45,8 @@
     <tbody>
         @forelse(($list ?? []) as $row)
         @php
-            // Controller 側で 'work_date' or 'date' を詰めている想定。なければ月1日で保護
             $ymd = $row['work_date'] ?? $row['date'] ?? ($__month.'-01');
-            $dLabel = \Carbon\Carbon::parse($ymd)->isoFormat('MM/DD(ddd)'); // Figmaっぽい表記
+            $dLabel = \Carbon\Carbon::parse($ymd)->isoFormat('MM/DD(ddd)');
             $detailUrl = route('admin.attendances.show', [
             'date' => \Carbon\Carbon::parse($ymd)->format('Y-m-d'),
             'id'   => $__userId,

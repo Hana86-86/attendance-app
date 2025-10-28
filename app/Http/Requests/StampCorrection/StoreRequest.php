@@ -56,22 +56,17 @@ class StoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // 勤務日（Y-m-d）
             'date'              => ['required', 'date_format:Y-m-d'],
 
-            // 出退勤（H:i）
             'clock_in'          => ['nullable', 'date_format:H:i'],
             'clock_out'         => ['nullable', 'date_format:H:i'],
 
-            // 休憩（H:i）
             'breaks'            => ['nullable', 'array'],
             'breaks.*.start'    => ['nullable', 'date_format:H:i'],
             'breaks.*.end'      => ['nullable', 'date_format:H:i'],
 
-            // 勤怠IDは「存在すればOK」
             'attendance_id'     => ['nullable', 'integer', 'exists:attendances,id'],
 
-            // 備考
             'reason'            => ['required', 'string', 'max:500'],
         ];
     }

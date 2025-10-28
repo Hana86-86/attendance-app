@@ -27,7 +27,7 @@
       </a>
     </li>
 
-    {{-- ログアウト（リンク風ボタン：POST） --}}
+    {{-- ログアウト --}}
     <li class="nav-logout">
       <form method="POST" action="{{ route('admin.logout') }}">
         @csrf

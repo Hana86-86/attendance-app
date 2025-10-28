@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Auth\AdminLoginRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Requests\Admin\Auth\AdminLoginRequest;
 
 class AdminAuthController extends Controller
 {
@@ -38,7 +38,6 @@ class AdminAuthController extends Controller
 
         // 資格情報で認証
         if (! Auth::attempt($credentials, $remember)) {
-            // 認証失敗時は「ログイン情報が登録されていません」を返す
             return back()
                 ->withErrors(['email' => 'ログイン情報が登録されていません'])
                 ->onlyInput('email');

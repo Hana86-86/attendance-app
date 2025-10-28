@@ -13,7 +13,7 @@
     | name, dateY, dateMD, clockIn, clockOut, break1In, break1Out, break2In, break2Out, reason
    */
 
-  $role    = $role    ?? (request()->routeIs('admin.*') ? 'admin' : 'staff');
+  $role = $role ?? ((auth()->check() && auth()->user()->isAdmin()) ? 'admin' : 'staff');
   $status  = $status  ?? 'editable';
   $canEdit = (bool)($canEdit ?? false);
   $footer  = $footer  ?? 'request';

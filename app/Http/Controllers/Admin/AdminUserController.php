@@ -90,12 +90,12 @@ class AdminUserController extends Controller
         $user = User::findOrFail($id);
         $this->authorize('view-attendance-of-user', $user);
 
-        // 期間（その月の 1 日〜末日）
+        // 期間設定
         $base  = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
         $start = $base->copy()->startOfMonth()->toDateString();
         $end   = $base->copy()->endOfMonth()->toDateString();
 
-        // その月の勤怠を丸ごと取得（休憩も同時ロード）
+        // 勤怠データ取得
         $rows = Attendance::with('breakTimes')
             ->where('user_id', $user->id)
             ->whereBetween('work_date', [$start, $end])
@@ -106,7 +106,6 @@ class AdminUserController extends Controller
                 : Carbon::parse($r->work_date)->toDateString()
             );
 
-        // ダウンロードファイル名
         $filename = sprintf('attendance_%s_%s.csv', $user->id, $base->format('Ym'));
 
         return response()->streamDownload(function () use ($start, $end, $rows, $user) {
@@ -145,7 +144,7 @@ class AdminUserController extends Controller
                 }
                 $breakMin = $breakMin ?: 0;
 
-                // 勤務合計（分）＝（退勤−出勤）− 休憩
+                // 勤務合計（分）
                 $workMin = 0;
                 if ($ci && $co) {
                     $total   = Carbon::parse($ci)->diffInMinutes(Carbon::parse($co));

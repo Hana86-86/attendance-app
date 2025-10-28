@@ -17,14 +17,14 @@ class StampCorrectionRequestController extends Controller
 
     public function index(Request $request)
 {
+    $user    = auth()->user();
+    $isAdmin = $user->isAdmin();
+
     $status = in_array($request->query('status'), ['pending', 'approved'])
-            ? $request->query('status') : 'pending';
+            ? $request->query('status')
+            : 'pending';
 
-    // 管理者判定
-    $user = auth()->user();
-    $isAdmin = $request->routeIs('admin.*') || ($user->is_admin ?? false);
-
-    // 一覧クエリ：管理者は全件、スタッフは自分のみ
+    // 一覧 管理者は全件、スタッフは自分のみ
     $list = StampCorrectionRequest::with(['attendance','user'])
         ->when(!$isAdmin, fn($q) => $q->where('user_id', Auth::id()))
         ->where('status', $status)

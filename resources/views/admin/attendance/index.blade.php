@@ -6,13 +6,9 @@
   $isDetail = (bool)($isDetail ?? false);
 @endphp
 
-{{-- ===== ページタイトル・上部UI ===== --}}
 @if($isDetail)
-  {{-- 勤怠詳細（カレンダーバーは出さない） --}}
   <x-page-title>勤怠詳細</x-page-title>
-
 @else
-  {{-- 勤怠一覧（タイトル＋カレンダーバーを出す） --}}
   <x-page-title>{{ $title ?? '勤怠一覧' }}</x-page-title>
 
   @php
@@ -36,9 +32,7 @@
 
 {{-- ===== 本文：詳細 or 一覧 ===== --}}
 @if($isDetail)
-  {{--  詳細カード（右下に修正/承認/承認済み） --}}
   @include('attendance.partials._detail-card', get_defined_vars())
-
 @else
   {{--  一覧テーブル --}}
   <div class="card">

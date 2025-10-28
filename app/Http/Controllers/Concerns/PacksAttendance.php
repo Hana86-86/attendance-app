@@ -10,7 +10,6 @@ use Carbon\Carbon;
 
 trait PacksAttendance
 {
-    // 分 → "H:MM"（nullならnullのまま返す。表示フォーマットはBlade直前で決められるようにする）
     protected function toHM(?int $minutes): ?string
     {
         if ($minutes === null) return null;
@@ -23,7 +22,7 @@ trait PacksAttendance
     Attendance $att,
     User $user,
     string $dateYmd,
-    array $ui                       // ['role','status','canEdit','footer','form'] 等
+    array $ui
 ): array {
 
     $date = Carbon::parse($dateYmd);

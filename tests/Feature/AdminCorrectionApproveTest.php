@@ -27,7 +27,7 @@ class AdminCorrectionApproveTest extends TestCase
         $u1 = User::factory()->create(['email_verified_at' => now()]);
         $u2 = User::factory()->create(['email_verified_at' => now()]);
 
-        // ひも付く勤怠（適当でOK）
+        // ひも付く勤怠
         $a1 = Attendance::create([
             'user_id' => $u1->id, 'work_date' => '2025-10-17',
             'clock_in' => '2025-10-17 09:00:00', 'clock_out' => '2025-10-17 18:00:00',

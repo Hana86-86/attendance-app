@@ -26,7 +26,7 @@ public function create()
 
     if ($attendance) {
         if (!is_null($attendance->clock_out) || $attendance->status === 'closed') {
-            $state = 'closed';               // 退勤済み 何もボタンなし
+            $state = 'closed';               // 退勤済み ボタンなし
         } elseif (is_null($attendance->clock_in)) {
             $state = 'not_working';           // 出勤前 出勤ボタンのみ
         } elseif ($attendance->breakTimes()->whereNull('end')->exists()) {
@@ -158,8 +158,8 @@ public function create()
 {
     // 月初・月末の日付文字列を取得
     $base      = Carbon::createFromFormat('Y-m', $month, config('app.timezone'));
-    $startDate = $base->copy()->startOfMonth()->toDateString(); // "YYYY-MM-01"
-    $endDate   = $base->copy()->endOfMonth()->toDateString();   // "YYYY-MM-31"
+    $startDate = $base->copy()->startOfMonth()->toDateString();
+    $endDate   = $base->copy()->endOfMonth()->toDateString();
 
     // タイトル・前月・次月
     $titleYM   = $base->isoFormat('YYYY/MM');
@@ -205,7 +205,6 @@ public function create()
     return view('attendance.list', compact('titleYM', 'prevMonth', 'nextMonth', 'list'));
 }
 
-/** 表示用：分 → "H:MM"（null は '—'） */
 private function toHM(?int $minutes): string
 {
     if ($minutes === null) return '—';
@@ -235,9 +234,10 @@ private function toHM(?int $minutes): string
 
     public function show(string $date)
 {
-    $user    = Auth::user();
-    $isAdmin = request()->routeIs('admin.*') || ($user->is_admin ?? false);
+    $user    = auth()->user();
+    $isAdmin = $user->isAdmin();
     $targetUserId = $isAdmin ? (int)request('user_id', $user->id) : $user->id;
+
 
     // 当日の勤怠
     $attendance = Attendance::with('breakTimes')
@@ -247,30 +247,30 @@ private function toHM(?int $minutes): string
 
     $attendanceId = optional($attendance)->id;
 
-    // 最新の申請（attendance_id一致 or attendance_idがNULLで当日対象）
+    // 当日の最新の申請
     $latestRequest = StampCorrectionRequest::query()
         ->where('user_id', $targetUserId)
         ->where(function ($q) use ($attendanceId, $date) {
             if ($attendanceId) {
-                $q->where('attendance_id', $attendanceId)
-                  ->orWhere(function ($qq) use ($date) {
-                      $qq->whereNull('attendance_id')
-                         ->where(function ($qqq) use ($date) {
-                             $qqq->whereDate('requested_clock_in',  $date)
-                                 ->orWhereDate('requested_clock_out', $date);
-                         });
-                  });
+            $q->where('attendance_id', $attendanceId)
+                ->orWhere(function ($qq) use ($date) {
+                $qq->whereNull('attendance_id')
+                    ->where(function ($qqq) use ($date) {
+                    $qqq->whereDate('requested_clock_in',  $date)
+                            ->orWhereDate('requested_clock_out', $date);
+                        });
+                    });
             } else {
                 $q->where(function ($qq) use ($date) {
                     $qq->whereDate('requested_clock_in',  $date)
-                       ->orWhereDate('requested_clock_out', $date);
+                        ->orWhereDate('requested_clock_out', $date);
                 });
             }
         })
         ->latest('id')
         ->first();
 
-    // --- UI 判定はここ1か所に集約 ---
+    // 画面表示用の状態判定
     $status  = 'editable';
     $footer  = $isAdmin ? 'admin_update' : 'request';
     $canEdit = $isAdmin;
@@ -287,10 +287,8 @@ private function toHM(?int $minutes): string
         }
     }
 
-    // UI 判定に使った latest をそのまま使う
 $reqForOverlay = ($latestRequest && $latestRequest->status === 'pending') ? $latestRequest : null;
 
-// 画面用の勤怠 = 勤怠 +（承認待ちなら）申請内容を合成
 $attForView = $this->overlayAttendanceWithRequest($attendance, $reqForOverlay, $targetUserId, $date);
 
     $view = $this->packDetail($attForView, $user, $date, [

@@ -18,14 +18,13 @@
       <strong>@yield('header','')</strong>
     </div>
 
-    {{-- ★ ここに各ページのナビが入る（常にヘッダーの右側） --}}
+    {{--  ここに各ページのナビが入る（常にヘッダーの右側） --}}
     @yield('nav')
   </div>
 </header>
 
 <main class="main @yield('main_class')">
   <div class="container">
-    {{-- フラッシュ等 --}}
     @if(session('success')) <div class="flash">{{ session('success') }}</div> @endif
     @if ($errors->any())
       <div class="danger"><ul class="errors">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>

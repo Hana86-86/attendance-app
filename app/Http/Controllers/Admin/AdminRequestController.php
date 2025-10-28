@@ -33,7 +33,7 @@ class AdminRequestController extends Controller
         if ($detail) {
     $attendance = $detail->attendance; // 実データ
     $baseDate = optional($attendance?->work_date)?->toDateString()
-              ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
+                ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
 
     $ui = [
         'role'    => 'admin',
@@ -45,7 +45,6 @@ class AdminRequestController extends Controller
                         : null,
     ];
 
-    // ★ 申請内容を画面用の勤怠に合成（pending のときだけ上書き）
     $attForView = $this->overlayAttendanceWithRequest(
         $attendance,
         $detail->status === 'pending' ? $detail : null,
@@ -56,9 +55,6 @@ class AdminRequestController extends Controller
     $detailVars = $this->packDetail($attForView, $detail->user, $baseDate, $ui);
     $detailVars['detailId'] = $detail->id;
 }
-        
-
-        
     }
     return view('admin.requests.index', compact('status','list','detail','detailVars'));
     }
@@ -69,27 +65,27 @@ class AdminRequestController extends Controller
     $backUrl = (string)$request->input('redirect', '');
 
     DB::transaction(function () use ($id) {
-        // ★ トランザクション内で行ロック
+        // ロック付きで取得
         $req = StampCorrectionRequest::with('attendance')->whereKey($id)->lockForUpdate()->firstOrFail();
 
         if ($req->status !== 'pending') {
-            return; // 何もしない
+            return; // 既に承認済みなら何もしない
         }
 
-        // ★ 勤怠は user_id+work_date で取得/作成（id指定はやめる）
+        // 勤務日特定
         $workDate = Carbon::parse($req->requested_clock_in ?? $req->requested_clock_out ?? now())->toDateString();
 
         $attendance = $req->attendance
             ?: Attendance::firstOrCreate(['user_id' => $req->user_id, 'work_date' => $workDate]);
 
-        // 出退勤（あるものだけ上書き）
+        // 出退勤 反映
         if ($req->requested_clock_in)  $attendance->clock_in  = $req->requested_clock_in;
         if ($req->requested_clock_out) $attendance->clock_out = $req->requested_clock_out;
 
         // 備考
         if (!empty($req->reason)) $attendance->reason = $req->reason;
 
-        // 休憩：全削除→申請の配列を反映
+        // 休憩時間 反映
         $attendance->breakTimes()->delete();
         foreach (($req->requested_break ?? []) as $b) {
             $attendance->breakTimes()->create([
@@ -101,7 +97,7 @@ class AdminRequestController extends Controller
         $attendance->status = $attendance->clock_out ? 'closed' : 'working';
         $attendance->save();
 
-        // ★ リクエスト側も承認 & 紐付け更新
+        // 申請ステータス 更新
         $req->update([
             'status'        => 'approved',
             'attendance_id' => $attendance->id,
@@ -110,7 +106,7 @@ class AdminRequestController extends Controller
 
     return redirect($backUrl ?: route('admin.requests.index', [
         'status' => 'approved',
-        'id'     => $id, // 承認後に同じ詳細を開いたまま「承認済み」表示に切替
+        'id'     => $id, // 承認後も詳細を表示
     ]))->with('success', '承認しました。');
 }
 }

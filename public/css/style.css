@@ -10,8 +10,8 @@
 html,body{
   margin:0; padding:0; background:var(--bg); color:var(--ink);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-               "ヒラギノ角ゴ ProN","Hiragino Kaku Gothic ProN","Noto Sans JP",
-               "メイリオ", Meiryo, sans-serif;
+                "ヒラギノ角ゴ ProN","Hiragino Kaku Gothic ProN","Noto Sans JP",
+                "メイリオ", Meiryo, sans-serif;
   -webkit-text-size-adjust:100%;
 }
 img{ max-width:100%; height:auto }
@@ -37,7 +37,7 @@ justify-content: space-between;
 .nav-links a{ color:#fff; opacity:.9; padding:6px 4px; position:relative; }
 .nav-links a.active{ opacity:1; }
 .nav-links a.active::after{ content:""; position:absolute; left:0; right:0; bottom:-6px; height:2px; background:#fff; border-radius:2px; }
-.nav-logout{ margin-left:auto; }          /* ← 右端に押し出す */
+.nav-logout{ margin-left:auto; }
 .btn-logout{ background:#fff; color:#111; border:1px solid #fff; padding:6px 16px; border-radius:6px; font-size:14px; cursor:pointer; }
 .btn-logout:hover{ opacity:.9; }
 /* ブランド表示（ロゴ＋テキスト） */
@@ -153,17 +153,17 @@ ul.errors{ margin:6px 0 18px }
 /* ===== ヘッダーのナビをFigma寄せ ===== */
 .nav-links a{ padding:10px 12px; }
 .nav-links a.active::after{
-  bottom:-12px;         /* 下線を少し下に */
-  height:3px;           /* 下線を太く */
+  bottom:-12px;
+  height:3px;
 }
 
-/* 「ログアウト」をリンク風に（POSTのまま見た目だけリンク） */
+/* ログアウト */
 .as-link{
   background:transparent; border:none; color:#fff; padding:6px 4px;
   font:inherit; cursor:pointer; opacity:.9;
 }
 .as-link:hover{ opacity:1; text-decoration:underline; }
-.nav-logout form{ display:inline; }   /* レイアウトを崩さない */
+.nav-logout form{ display:inline; }
 
 /* ===== ページ内タブ（承認待ち / 承認済み） ===== */
 .seg-tabs{
@@ -179,19 +179,17 @@ ul.errors{ margin:6px 0 18px }
   height:2px; background:#111; border-radius:2px;
 }
 
-/* ===== 一覧カードの幅（やや狭く中央） ===== */
+/* ===== 一覧カードの幅 ===== */
 .card.--narrow{
   max-width: 900px;
   margin: 0 auto;
 }
 
-/* テーブルのヘッダ感を少し強める */
 .table thead th{ background:#f6f6f6; }
 
-/* 余白の小調整（一覧上のツールバーなど） */
+/* 余白の調整 */
 .att-toolbar{ padding:10px 14px; margin:12px auto; }
 
-/* リンク風ボタン（ログアウト） */
 .as-link{ background:none; border:none; padding:0; color:#fff; cursor:pointer; font:inherit }
 .as-link:hover{ opacity:.85; text-decoration:underline }
 
@@ -199,4 +197,17 @@ ul.errors{ margin:6px 0 18px }
 .page-tabs{ display:flex; gap:24px; margin:10px 0 18px; }
 .page-tabs a{ color:#555; padding:6px 4px; border-bottom:2px solid transparent; }
 .page-tabs a.is-active{ color:#111; border-color:#111; font-weight:600; }
+
+/* 画面幅が768px以下（スマホ・タブレット）用 */
+@media (max-width: 768px) {
+  .container {
+    padding: 8px;
+    font-size: 14px;
+  }
+  .btn {
+    width: 100%;
+  }
+}
+
+
 

@@ -73,24 +73,23 @@ class AdminAttendanceController extends Controller
         ->where(function ($q) use ($attendanceId, $date) {
             if ($attendanceId) {
                 $q->where('attendance_id', $attendanceId)
-                  ->orWhere(function ($qq) use ($date) {
-                      $qq->whereNull('attendance_id')
-                         ->where(function ($qqq) use ($date) {
-                             $qqq->whereDate('requested_clock_in',  $date)
-                                 ->orWhereDate('requested_clock_out', $date);
-                         });
-                  });
+                    ->orWhere(function ($qq) use ($date) {
+                    $qq->whereNull('attendance_id')
+                        ->where(function ($qqq) use ($date) {
+                            $qqq->whereDate('requested_clock_in',  $date)
+                                ->orWhereDate('requested_clock_out', $date);
+                            });
+                        });
             } else {
                 $q->where(function ($qq) use ($date) {
                     $qq->whereDate('requested_clock_in',  $date)
-                       ->orWhereDate('requested_clock_out', $date);
+                        ->orWhereDate('requested_clock_out', $date);
                 });
             }
         })
         ->latest('id')
         ->first();
 
-    // --- UI（右下ボタンなど）
     $status  = 'editable';
     $footer  = 'admin_update';
     $canEdit = true;
@@ -107,13 +106,12 @@ class AdminAttendanceController extends Controller
         }
     }
 
-    // --- 画面に出す勤怠
     // 承認待ちのときだけ「申請内容」を合成してプレビュー、それ以外は実データのみ
     if ($latestRequest && $latestRequest->status === 'pending') {
         $attForView = $this->overlayAttendanceWithRequest($attendance, $latestRequest, $user->id, $date);
     } else {
         $attForView = $attendance ?: new Attendance(['user_id' => $user->id, 'work_date' => $date]);
-        $attForView->loadMissing('breakTimes'); // 実データの休憩を確実に読む
+        $attForView->loadMissing('breakTimes');
     }
 
     $ui = [

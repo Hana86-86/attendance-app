@@ -7,26 +7,22 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateRequest extends FormRequest
 {
-    // 認可：ログイン済み
     public function authorize(): bool
     {
         return auth()->check();
     }
 
-    // 単項目ルール
     public function rules(): array
     {
         return [
-            // 出退勤（H:i）
             'clock_in'  => ['nullable', 'date_format:H:i'],
             'clock_out' => ['nullable', 'date_format:H:i'],
-
-            // 休憩：配列 or 単体の両対応
+            // 休憩時間（複数）
             'breaks'         => ['nullable', 'array'],
             'breaks.*.start' => ['nullable', 'date_format:H:i'],
             'breaks.*.end'   => ['nullable', 'date_format:H:i'],
 
-            // ★ 管理画面の単体フィールドにも対応
+            // 休憩時間（単一）
             'break_start'    => ['nullable', 'date_format:H:i'],
             'break_end'      => ['nullable', 'date_format:H:i'],
 
@@ -107,7 +103,7 @@ class UpdateRequest extends FormRequest
         });
     }
 
-    // 既存の戻り先ロジック
+    // リダイレクト先URLを出勤詳細ページに設定
     protected function getRedirectUrl()
     {
         $date = $this->route('date') ?? $this->input('date');
@@ -115,7 +111,7 @@ class UpdateRequest extends FormRequest
         return route('attendance.detail', ['date' => $date]);
     }
 
-    // "H:i" を当日 Carbon に。失敗は null
+    // 時間文字列をCarbonインスタンスに変換、失敗時はnullを返す
     private function parseTimeOrNull(?string $value): ?Carbon
     {
         if (!$value) return null;
@@ -123,5 +119,4 @@ class UpdateRequest extends FormRequest
         catch (\Throwable) { return null; }
     }
 
-    
 }

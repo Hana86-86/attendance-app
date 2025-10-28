@@ -31,8 +31,7 @@ cd attendance-app
     DB_PASSWORD=password
 
 3. Sail の起動
-   プロジェクトルートで以下のコマンドを実行し、Docker コンテナを起動します
-   起動時にはイメージのダウンロードに時間がかかる場合があります。
+   プロジェクトルートで以下のコマンドを実行し、Docker コンテナを起動します。
 
 ```bash
 ./vendor/bin/sail up -d
@@ -59,11 +58,26 @@ Composer と npm の依存関係をコンテナ内でインストールします
 ./vendor/bin/sail artisan migrate
 ```
 
-7. phpMyAdmin へのアクセス
+7. 初期データ投入（Seeder 実行）
+
+```bash
+./vendor/bin/sail artisan migrate:fresh --seed
+```
+•	AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
+•	StaffUsersSeeder … テスト用のスタッフユーザー10名を作成
+•	AttendanceMonthSeeder … テスト用の勤怠データを作成
+
+
+8. phpMyAdmin へのアクセス
    URL: http://localhost:8080
 
+
+9. ブラウザで以下の URL にアクセスしてください:
+   http://localhost
+
 ---
-[ER 図]　er-diagram.drawio
+
+[ER 図]　 er-diagram.drawio
 
 認証メール送信設定（Mailtrap 利用）
 
@@ -72,6 +86,7 @@ Composer と npm の依存関係をコンテナ内でインストールします
 設定方法
 
 1. .env ファイルに以下を追記してください。
+
 ```env
 MAIL_MAILER=smtp
 MAIL_HOST=sandbox.smtp.mailtrap.io
@@ -88,3 +103,4 @@ MAIL_FROM_NAME="Attendance App"
 2. Mailtrapのダッシュボードにログインし、受信したテストメールを確認できます。
 URL: https://mailtrap.io
 
+```

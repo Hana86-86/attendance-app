@@ -11,7 +11,6 @@
   $inputStyle = 'width:100%; height:38px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:0 10px;';
   $boxStyle   = 'height:38px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:0 10px; display:flex; align-items:center;';
 
-  // name 属性 -> エラー/old 用のキーに変換（breaks[0][start] => breaks.0.start）
   $toDot = fn(string $s) => str_replace(['[',']'], ['.', ''], $s);
   $errStart = $toDot($nameStart);
   $errEnd   = $toDot($nameEnd);
@@ -32,7 +31,7 @@
         <p class="error" style="color:#e06;margin-top:6px;">{{ $message }}</p>
       @enderror
     @else
-      <div style="{{ $boxStyle }}">{{ $start !== '' ? $start : 'ー' }}</div>
+      <div style = "{{ $boxStyle }}">{{ $start !== '' ? $start : 'ー' }}</div>
     @endif
   </td>
 
