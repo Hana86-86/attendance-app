@@ -98,10 +98,10 @@ class AdminAttendanceController extends Controller
         if ($latestRequest->status === 'pending') {
             $status  = 'pending';
             $footer  = 'approve';     // 承認ボタン
-            $canEdit = true;          // 管理者は承認も可
+            $canEdit = true;
         } elseif ($latestRequest->status === 'approved') {
             $status  = 'approved';
-            $footer  = 'approved';    // グレー表示
+            $footer  = 'approved';
             $canEdit = false;
         }
     }
@@ -150,7 +150,6 @@ class AdminAttendanceController extends Controller
         $attendance->clock_in  = $data['clock_in']  ?? null;
         $attendance->clock_out = $data['clock_out'] ?? null;
 
-        // 休憩削除 → 再作成
         $attendance->breakTimes()->delete();
 
         foreach ($breaks as $bt) {

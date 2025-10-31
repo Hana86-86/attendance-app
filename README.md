@@ -79,6 +79,8 @@ Composer と npm の依存関係をコンテナ内でインストールします
 
 [ER 図]　 er-diagram.drawio
 
+----
+
 認証メール送信設定（Mailtrap 利用）
 
 開発環境でのメール送信テストに[Mailtrap](https://mailtrap.io)を使用しています。

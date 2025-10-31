@@ -103,7 +103,6 @@ class UpdateRequest extends FormRequest
         });
     }
 
-    // リダイレクト先URLを出勤詳細ページに設定
     protected function getRedirectUrl()
     {
         $date = $this->route('date') ?? $this->input('date');
@@ -111,7 +110,6 @@ class UpdateRequest extends FormRequest
         return route('attendance.detail', ['date' => $date]);
     }
 
-    // 時間文字列をCarbonインスタンスに変換、失敗時はnullを返す
     private function parseTimeOrNull(?string $value): ?Carbon
     {
         if (!$value) return null;
