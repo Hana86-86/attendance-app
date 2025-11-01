@@ -57,7 +57,7 @@ class UpdateRequest extends FormRequest
                 if (!empty($b['start'])) {
                     $start = $this->parseTimeOrNull($b['start']);
                     if ($start) {
-                        if ($in  && $start->lt($in))  {
+                        if ($in  && $start->lt($in)) {
                             $v->errors()->add("breaks.$i.start", __('validation.attendance.common.break_start_invalid'));
                         }
                         if ($out && $start->gt($out)) {
@@ -85,7 +85,7 @@ class UpdateRequest extends FormRequest
             $be = $this->parseTimeOrNull($this->input('break_end'));
 
             if ($bs) {
-                if ($in  && $bs->lt($in))  {
+                if ($in  && $bs->lt($in)) {
                     $v->errors()->add('break_start', __('validation.attendance.common.break_start_invalid'));
                 }
                 if ($out && $bs->gt($out)) {
@@ -93,7 +93,7 @@ class UpdateRequest extends FormRequest
                 }
             }
             if ($be) {
-                if ($bs  && $be->lt($bs))  {
+                if ($bs  && $be->lt($bs)) {
                     $v->errors()->add('break_end', __('validation.attendance.common.break_end_invalid'));
                 }
                 if ($out && $be->gt($out)) {
@@ -105,24 +105,23 @@ class UpdateRequest extends FormRequest
 
     protected function getRedirectUrl(): string
     {
-        // ルートパラメータ / hidden入力の両方から安全に取得
         $date = $this->route('date') ?? $this->input('date');
         $id   = $this->route('id')   ?? $this->input('id')   ?? $this->input('user_id');
 
-        // 管理者側のリクエストであれば admin.* の詳細へ戻す
         if ($this->routeIs('admin.*') || Str::startsWith($this->path(), 'admin/')) {
-            // 例）admin.attendances.show に必ず戻す
+
             return route('admin.attendances.show', ['date' => $date, 'id' => $id]);
         }
 
-        // それ以外（スタッフ側）はスタッフの詳細へ
         return route('attendance.detail', ['date' => $date]);
     }
     private function parseTimeOrNull(?string $value): ?Carbon
     {
         if (!$value) return null;
-        try { return Carbon::createFromFormat('H:i', $value); }
-        catch (\Throwable) { return null; }
+        try {
+            return Carbon::createFromFormat('H:i', $value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
-
 }

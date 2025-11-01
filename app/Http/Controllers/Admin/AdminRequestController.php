@@ -59,6 +59,7 @@ class AdminRequestController extends Controller
     return view('admin.requests.index', compact('status','list','detail','detailVars'));
     }
     // 承認（同じURLに戻ってボタンが「承認済み」に変わる）
+    
         public function approve(Request $request)
 {
     $id      = (int)$request->input('id');
@@ -107,6 +108,7 @@ class AdminRequestController extends Controller
     return redirect($backUrl ?: route('admin.requests.index', [
         'status' => 'approved',
         'id'     => $id, // 承認後も詳細を表示
+        'source' => 'requests',
     ]))->with('success', '承認しました。');
 }
 }

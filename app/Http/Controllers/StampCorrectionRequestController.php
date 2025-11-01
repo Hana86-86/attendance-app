@@ -17,25 +17,21 @@ class StampCorrectionRequestController extends Controller
 
     public function index(Request $request)
     {
-        // ① 権限判定（管理者かどうか）
-        $user    = Auth::user();                 // ← ログイン中ユーザー
+        // 権限判定
+        $user    = Auth::user();
         $isAdmin = method_exists($user, 'isAdmin') ? $user->isAdmin() : ($user->role === 'admin');
-        // ↑ User::isAdmin() があればそれを使用。なければ role==='admin' 判定。
 
-        // ② クエリの status を安全に解釈（未指定は pending）
         $status = in_array($request->query('status'), ['pending', 'approved'], true)
             ? $request->query('status')
             : 'pending';
 
-        // ③ 一覧データ
+        // 一覧データ
         $list = StampCorrectionRequest::with(['attendance', 'user'])
-            // 管理者でなければ自分の分だけ
             ->when(!$isAdmin, fn($q) => $q->where('user_id', $user->id))
             ->where('status', $status)
             ->latest('created_at')
             ->get();
 
-        // ④ 右側の詳細（?id=... が来たときだけ）
         $detail     = null;
         $detailVars = [];
 
@@ -45,11 +41,9 @@ class StampCorrectionRequestController extends Controller
                 ->find($id);
 
             if ($detail) {
-                // ⑤ どの日付の勤怠としてプレビューするか（勤怠があればwork_date、なければ申請中の時刻から）
                 $baseDate = optional(optional($detail->attendance)->work_date)?->toDateString()
                     ?? Carbon::parse($detail->requested_clock_in ?? $detail->requested_clock_out ?? now())->toDateString();
 
-                // ⑥ 画面用フラグ（role/status/footer/canEdit）
                 $ui = $isAdmin
                     ? [
                         'role'    => 'admin',                     // 管理者UI
@@ -66,7 +60,6 @@ class StampCorrectionRequestController extends Controller
                         'form'    => null,
                     ];
 
-                // ⑦ 承認待ちなら「申請内容」を重ね合わせてプレビュー、承認済なら実データのみ
                 $attForView = $this->overlayAttendanceWithRequest(
                     $detail->attendance,
                     $detail->status === 'pending' ? $detail : null,
@@ -74,14 +67,10 @@ class StampCorrectionRequestController extends Controller
                     $baseDate
                 );
 
-                // ⑧ Bladeに渡すペイロードを作成（packDetail）
                 $detailVars = $this->packDetail($attForView, $detail->user, $baseDate, $ui);
             }
         }
 
-        // ⑨ ビューの選択（※パス名は存在するBladeに合わせること！）
-        // 管理者: resources/views/admin/requests/list.blade.php
-        // スタッフ: resources/views/requests/list.blade.php
         $view = $isAdmin ? 'admin.requests.index' : 'requests.list';
 
         return view($view, [

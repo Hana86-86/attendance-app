@@ -37,6 +37,7 @@
     $detailUrl = route('admin.attendances.show', [
         'date' => $workDate,
         'id'   => $sr->user_id,
+        'source' => 'requests',
 ]);
     $displayDate = \Carbon\Carbon::parse($workDate)->isoFormat('YYYY/MM/DD');
     $requestedAt = optional($sr->created_at)?->format('Y/m/d H:i');

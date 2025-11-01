@@ -61,6 +61,8 @@ class AdminAttendanceController extends Controller
     {
         $user = User::findOrFail($id);
 
+        $source = request()->query('source', 'attendances');
+
         $attendance = Attendance::with('breakTimes')
             ->where('user_id', $user->id)
             ->whereDate('work_date', $date)
@@ -94,15 +96,26 @@ class AdminAttendanceController extends Controller
         $footer  = 'admin_update';
         $canEdit = true;
 
+        // 申請の状態に応じて基本状態を決める
         if ($latestRequest) {
             if ($latestRequest->status === 'pending') {
+                // 承認待ち
                 $status  = 'pending';
-                $footer  = 'approve';     // 承認ボタン
+                $footer  = 'approve';   // 承認ボタン表示
                 $canEdit = true;
             } elseif ($latestRequest->status === 'approved') {
-                $status  = 'approved';
-                $footer  = 'admin_update';
-                $canEdit = true;
+                // 承認済み → 文脈で分岐
+                $status = 'approved';
+
+                if ($source === 'requests') {
+                    // 申請一覧からの閲覧 → グレー固定
+                    $footer  = 'approved';
+                    $canEdit = false;    // 入力不可
+                } else {
+                    // 勤怠一覧からの閲覧 → 修正ボタンで再編集OK
+                    $footer  = 'admin_update';
+                    $canEdit = true;
+                }
             }
         }
 
