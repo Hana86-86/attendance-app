@@ -63,14 +63,13 @@ Composer と npm の依存関係をコンテナ内でインストールします
 ```bash
 ./vendor/bin/sail artisan migrate:fresh --seed
 ```
-•	AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
-•	StaffUsersSeeder … テスト用のスタッフユーザー10名を作成
-•	AttendanceMonthSeeder … テスト用の勤怠データを作成
 
+• AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
+• StaffUsersSeeder … テスト用のスタッフユーザー 10 名を作成
+• AttendanceMonthSeeder … テスト用の勤怠データを作成
 
 8. phpMyAdmin へのアクセス
    URL: http://localhost:8080
-
 
 9. ブラウザで以下の URL にアクセスしてください:
    http://localhost
@@ -79,7 +78,7 @@ Composer と npm の依存関係をコンテナ内でインストールします
 
 [ER 図]　 er-diagram.drawio
 
-----
+---
 
 認証メール送信設定（Mailtrap 利用）
 
@@ -106,3 +105,14 @@ MAIL_FROM_NAME="Attendance App"
 URL: https://mailtrap.io
 
 ```
+
+・休憩時間の仕様
+
+-   休憩は、1 秒でも発生した場合は 1 分として計上します。
+-   集計上は 1 分単位で処理されますが、詳細画面には実際の打刻時間が表示されます。
+
+    例）
+    • 09:00〜09:00 の場合 → 休憩時間として 0:01（1 分）を集計
+    • 09:00〜09:05 の場合 → 0:05（5 分）を集計
+
+---
