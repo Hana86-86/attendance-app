@@ -1,29 +1,48 @@
 @props([
+  // ラベル表示
   'label' => '',
-  'start' => '',
-  'end'   => '',
+  // name属性（開始・終了） 例: "clock_in" / "breaks[0][start]"
   'nameStart' => '',
   'nameEnd'   => '',
-  'mode'  => 'input',  // 'input' or 'text'
+  // 値（時刻文字列 "HH:MM" または 空文字）
+  'start' => '',
+  'end'   => '',
+  // 'input' or 'text'（入力欄か表示専用か）
+  'mode'  => 'input',
 ])
 
 @php
-  $inputStyle = 'width:100%; height:38px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:0 10px;';
-  $boxStyle   = 'height:38px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:0 10px; display:flex; align-items:center;';
+  // ─────────────────────────────────────────────
+  // 1) エラーキーをブラケット記法 → ドット記法に変換
+  //    ex) breaks[0][start] -> breaks.0.start
+  // ─────────────────────────────────────────────
+  $toDot = function (string $name) {
+    // breaks[0][start] → breaks.0.start
+    $s = preg_replace('/\]/', '', $name);        // 'breaks[0][start' へ
+    $s = preg_replace('/\[/','.',$s);            // 'breaks.0.start'
+    return $s;
+  };
 
-  $toDot = fn(string $s) => str_replace(['[',']'], ['.', ''], $s);
   $errStart = $toDot($nameStart);
   $errEnd   = $toDot($nameEnd);
 
-  // old の値を優先（未入力なら既存の $start/$end）
-  $valStart = old($errStart, $start);
-  $valEnd   = old($errEnd, $end);
+  // ─────────────────────────────────────────────
+  // 2) 値の表示用（テキストモード表示）
+  // ─────────────────────────────────────────────
+  $ghostStyle = "height:38px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:0 10px; display:flex; align-items:center;";
+
+  // 入力欄の共通スタイル
+  $inputStyle = "width:100%; height:38px; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; padding:0 10px;";
+
+  // 旧UI（テキスト表示時）の「〜」の間に入れる表示
+  $valStart = $start;
+  $valEnd   = $end;
 @endphp
 
 <tr style="border-bottom:1px solid #f7f7f7;">
   <td style="color:#666;">{{ $label }}</td>
 
-  {{-- 開始 --}}
+  {{-- ← 開始 --}}
   <td>
     @if ($mode === 'input')
       <input type="time" name="{{ $nameStart }}" value="{{ $valStart }}" style="{{ $inputStyle }}">
@@ -31,14 +50,14 @@
         <p class="error" style="color:#e06;margin-top:6px;">{{ $message }}</p>
       @enderror
     @else
-      <div style = "{{ $boxStyle }}">{{ $start !== '' ? $start : 'ー' }}</div>
+      <div style="{{ $ghostStyle }}">{{ $valStart !== '' ? $valStart : '—' }}</div>
     @endif
   </td>
 
-  {{-- 〜 --}}
+  {{-- 〜（区切り） --}}
   <td style="text-align:center; color:#999;">〜</td>
 
-  {{-- 終了 --}}
+  {{-- → 終了 --}}
   <td>
     @if ($mode === 'input')
       <input type="time" name="{{ $nameEnd }}" value="{{ $valEnd }}" style="{{ $inputStyle }}">
@@ -46,7 +65,7 @@
         <p class="error" style="color:#e06;margin-top:6px;">{{ $message }}</p>
       @enderror
     @else
-      <div style="{{ $boxStyle }}">{{ $end !== '' ? $end : 'ー' }}</div>
+      <div style="{{ $ghostStyle }}">{{ $valEnd !== '' ? $valEnd : '—' }}</div>
     @endif
   </td>
 </tr>
