@@ -116,3 +116,15 @@ URL: https://mailtrap.io
     • 09:00〜09:05 の場合 → 0:05（5 分）を集計
 
 ---
+
+## マイグレーションについて
+
+-   本アプリケーションは Laravel Sail 環境で開発しており、
+    `php artisan schema:dump --prune` を使用してマイグレーションを統合しています。
+
+クリーン環境では以下のコマンドで再構築可能です：
+
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan migrate --seed
+```
