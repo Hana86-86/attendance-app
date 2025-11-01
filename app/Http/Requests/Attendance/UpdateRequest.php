@@ -103,13 +103,21 @@ class UpdateRequest extends FormRequest
         });
     }
 
-    protected function getRedirectUrl()
+    protected function getRedirectUrl(): string
     {
+        // ルートパラメータ / hidden入力の両方から安全に取得
         $date = $this->route('date') ?? $this->input('date');
-        if (!$date) $date = now()->toDateString();
+        $id   = $this->route('id')   ?? $this->input('id')   ?? $this->input('user_id');
+
+        // 管理者側のリクエストであれば admin.* の詳細へ戻す
+        if ($this->routeIs('admin.*') || Str::startsWith($this->path(), 'admin/')) {
+            // 例）admin.attendances.show に必ず戻す
+            return route('admin.attendances.show', ['date' => $date, 'id' => $id]);
+        }
+
+        // それ以外（スタッフ側）はスタッフの詳細へ
         return route('attendance.detail', ['date' => $date]);
     }
-
     private function parseTimeOrNull(?string $value): ?Carbon
     {
         if (!$value) return null;
