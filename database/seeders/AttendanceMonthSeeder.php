@@ -14,15 +14,17 @@ class AttendanceMonthSeeder extends Seeder
     {
         $includeWeekend = false;
 
-        $users = User::where('role', 'user')->get();
-        if ($users->isEmpty()) return;
+        $users = User::whereIn('role', ['user', 'staff'])->get();
+        if ($users->isEmpty()) {
+            info('No users found for attendance seeding.');
+            return;
+        }
 
-        $start = Carbon::now()->startOfMonth();
-        $end   = Carbon::now();
+        $end   = Carbon::yesterday();
+        $start = $end->copy()->subMonthNoOverflow();
 
         DB::transaction(function () use ($users, $start, $end, $includeWeekend) {
 
-            $now = now();
 
             for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
 
@@ -45,7 +47,7 @@ class AttendanceMonthSeeder extends Seeder
 
                     // 退勤が出勤より前にならないように調整
                     if ($clockOut->lte($clockIn)) {
-                    $clockOut = $clockIn->copy()->addHours(8);
+                        $clockOut = $clockIn->copy()->addHours(8);
                     }
 
                     // 総休憩 60〜90分
@@ -78,17 +80,18 @@ class AttendanceMonthSeeder extends Seeder
                     }
 
                     if ($d->isToday()) {
-                    continue;
+                        continue;
                     }
 
 
                     $att = Attendance::updateOrCreate(
-                    ['user_id' => $u->id, 'work_date' => $d->toDateString()],
-                    [
-                        'clock_in'  => $clockIn->toTimeString(),
-                        'clock_out' => $clockOut->toTimeString(),
-                        'reason'    => '遅延のため',
-                    ]
+                        ['user_id' => $u->id, 'work_date' => $d->toDateString()],
+                        [
+                            'clock_in'  => $clockIn->toDateTimeString(),
+                            'clock_out' => $clockOut->toDateTimeString(),
+                            'reason' => '遅延のため',
+                            'status'    => 'closed',
+                        ]
                     );
 
                     // 既存の休憩を入れ替え

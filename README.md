@@ -64,6 +64,7 @@ Composer と npm の依存関係をコンテナ内でインストールします
 ./vendor/bin/sail artisan migrate:fresh --seed
 ```
 
+
 • AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
 • StaffUsersSeeder … テスト用のスタッフユーザー 10 名を作成
 • AttendanceMonthSeeder … テスト用の勤怠データを作成
@@ -119,7 +120,7 @@ URL: https://mailtrap.io
 
 ## マイグレーションについて
 
--   本アプリケーションは Laravel Sail 環境で開発しており、
+-   アプリケーションは Laravel Sail 環境で開発しており、
     `php artisan schema:dump --prune` を使用してマイグレーションを統合しています。
 
 クリーン環境では以下のコマンドで再構築可能です：
