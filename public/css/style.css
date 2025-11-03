@@ -1,4 +1,4 @@
-/* ========== 基本トークン ========== */
+/* ========== 基本 ========== */
 :root{
   --bg:#f1f1f3; --panel:#fff; --ink:#111; --muted:#707070;
   --brand:#111; --accent:#111; --radius:12px;
@@ -150,7 +150,7 @@ ul.errors{ margin:6px 0 18px }
   .btn-primary,.btn-secondary{ font-size:16px; padding:12px 20px; border-radius:12px }
 }
 
-/* ===== ヘッダーのナビをFigma寄せ ===== */
+/* ===== ヘッダーのナビ ===== */
 .nav-links a{ padding:10px 12px; }
 .nav-links a.active::after{
   bottom:-12px;
