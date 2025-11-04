@@ -12,62 +12,68 @@ Docker(Laravel Sail)を使用しています
 
 ---
 
-1.リポジトリのクローン
+0. 事前準備
+
+-   Docker Desktop を起動してから以下を実行してください。
+
+    1.リポジトリのクローンと移動
 
 ```bash
 git clone git@github.com:Hana86-86/attendance-app.git
 cd attendance-app
-```
 
 2. .env ファイル作成
-   cp .env.example .env
+```
 
--   DB の設定を以下に変更
-    DB_CONNECTION=mysql
-    DB_HOST=mysql
-    DB_PORT=3306
-    DB_DATABASE=attendance
-    DB_USERNAME=sail
-    DB_PASSWORD=password
+cp .env.example .env
 
-3. Sail の起動
-   プロジェクトルートで以下のコマンドを実行し、Docker コンテナを起動します。
+-   DB の設定を以下に変更してください
 
-```bash
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=attendance
+DB_USERNAME=sail
+DB_PASSWORD=password
+
+3. 依存関係のインストール
+   (開発環境に必要な依存関係を含めるため、--no-dev オプションはつけないでください。)
+   composer install
+
+4. Laravel Sail のインストールと実行ファイルの生成
+
+（ `./vendor/bin/sail` コマンドを確実に生成するために必須の手順です）
+
+```
+composer require laravel/sail --dev
+php artisan sail:install
+
+5. Sail の起動
+```
+
 ./vendor/bin/sail up -d
+(Sail 環境では、docker compose pull は実行しないでください。内部レジストリのエラーにより、環境構築に失敗する原因となります。)
+
+6. アプリキー生成
+
+```
+   ./vendor/bin/sail artisan key:generate
+
+7. マイグレーション & シーディング（どちらか1つを実行）
+
+# 既存DBを保ったまま初期データを投入したい場合
 ```
 
-4.依存関係のインストール
-Composer と npm の依存関係をコンテナ内でインストールします。
+./vendor/bin/sail artisan migrate --seed
 
-```bash
-./vendor/bin/sail composer install
-./vendor/bin/sail npm install
-./vendor/bin/sail npm run dev
+# 完全初期化して入れ直したい場合
+
 ```
-
-5. アプリキー生成
-
-```bash
-./vendor/bin/sail artisan key:generate
-```
-
-6. マイグレーション実行
-
-```bash
-./vendor/bin/sail artisan migrate
-```
-
-7. 初期データ投入（Seeder 実行）
-
-```bash
 ./vendor/bin/sail artisan migrate:fresh --seed
-```
 
-
-• AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
-• StaffUsersSeeder … テスト用のスタッフユーザー 10 名を作成
-• AttendanceMonthSeeder … テスト用の勤怠データを作成
+- AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
+- StaffUsersSeeder … テスト用のスタッフユーザー 10 名を作成
+- AttendanceMonthSeeder … テスト用の勤怠データを作成
 
 8. phpMyAdmin へのアクセス
    URL: http://localhost:8080
@@ -81,9 +87,9 @@ Composer と npm の依存関係をコンテナ内でインストールします
 
 ---
 
-認証メール送信設定（Mailtrap 利用）
+- 認証メール送信設定（Mailtrap 利用）
 
-開発環境でのメール送信テストに[Mailtrap](https://mailtrap.io)を使用しています。
+- 開発環境でのメール送信テストに[Mailtrap](https://mailtrap.io)を使用しています。
 
 設定方法
 
@@ -105,7 +111,6 @@ MAIL_FROM_NAME="Attendance App"
 2. Mailtrapのダッシュボードにログインし、受信したテストメールを確認できます。
 URL: https://mailtrap.io
 
-```
 
 ・休憩時間の仕様
 
@@ -128,4 +133,4 @@ URL: https://mailtrap.io
 ```bash
 ./vendor/bin/sail up -d
 ./vendor/bin/sail artisan migrate --seed
-```
+
