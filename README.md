@@ -29,7 +29,7 @@ git clone git@github.com:Hana86-86/attendance-app.git
 cd attendance-app
 ---
 
-## 2. .env ファイル作成
+2. .env ファイル作成
 
 ```bash
 cp .env.example .env
@@ -45,13 +45,13 @@ DB_PASSWORD=password
 
 ---
 
-## 3. 依存関係のインストール
+3. 依存関係のインストール
    (開発環境に必要な依存関係を含めるため、--no-dev オプションはつけないでください。)
 ```bash
 composer install
 
 
-## 4. Laravel Sail のインストールと実行ファイルの生成
+4. Laravel Sail のインストールと実行ファイルの生成
 
 （ `./vendor/bin/sail` コマンドを確実に生成するために必須の手順です）
 ```bash
@@ -59,41 +59,41 @@ composer require laravel/sail --dev
 php artisan sail:install
 
 
-## 5. Sail の起動
+5. Sail の起動
 
 ```bash
 ./vendor/bin/sail up -d
 
 (Sail 環境では、docker compose pull は実行しないでください。内部レジストリのエラーにより、環境構築に失敗する原因となります。)
 
-## 6. アプリキー生成
+6. アプリキー生成
 
 ```bash
 ./vendor/bin/sail artisan key:generate
 
-## 7. マイグレーション & シーディング（どちらか 1 つを実行）
+7. マイグレーション & シーディング（どちらか 1 つを実行）
 
-# 既存 DB を保ったまま初期データを投入したい場合
+- 既存 DB を保ったまま初期データを投入したい場合
 
 ```bash
 ./vendor/bin/sail artisan migrate --seed
 
 
-# 完全初期化して入れ直したい場合
+- 完全初期化して入れ直したい場合
 
 ```bash
 ./vendor/bin/sail artisan migrate:fresh --seed
 
-初期データ内容
+- 初期データ内容
 
 -   AdminUserSeeder … 管理者アカウントを作成（email: admin@example.com / password: password）
 -   StaffUsersSeeder … テスト用のスタッフユーザー 10 名を作成
 -   AttendanceMonthSeeder … テスト用の勤怠データを作成
 
-## 8. phpMyAdmin へのアクセス
+ 8. phpMyAdmin へのアクセス
    URL: http://localhost:8080
 
-## 9. ブラウザで以下の URL にアクセスしてください:
+ 9. ブラウザで以下の URL にアクセスしてください:
    http://localhost
 
 ---
@@ -108,7 +108,7 @@ php artisan sail:install
 
 設定方法
 
-## 1.  DB の設定を以下に変更してください
+ 1.  DB の設定を以下に変更してください
 ```env
 MAIL_MAILER=smtp
 MAIL_HOST=sandbox.smtp.mailtrap.io
@@ -126,7 +126,7 @@ MAIL_FROM_NAME="Attendance App"
 
 ---
 
-## 2. Mailtrap のダッシュボードにログインし、受信したテストメールを確認できます。
+ 2. Mailtrap のダッシュボードにログインし、受信したテストメールを確認できます。
    URL: https://mailtrap.io
 
 ---
@@ -142,7 +142,7 @@ MAIL_FROM_NAME="Attendance App"
 
 ---
 
-## マイグレーションについて
+- マイグレーションについて
 
 -   アプリケーションは Laravel Sail 環境で開発しており、
     `php artisan schema:dump --prune` を使用してマイグレーションを統合しています。
